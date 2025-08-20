@@ -1,0 +1,18 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-Name: dbeaver-Ili2pg-plugin
+Bundle-SymbolicName: ch.so.agi.dbeaver.ili2pg;singleton:=true
+Bundle-Version: 1.0.0.qualifier
+Bundle-Vendor: YOURCOMPANY
+Require-Bundle: 
+ org.eclipse.core.runtime,
+ org.eclipse.ui, 
+ org.eclipse.core.expressions,
+ org.eclipse.jface,
+ org.jkiss.dbeaver.model,
+ org.jkiss.dbeaver.ui,    
+ org.jkiss.dbeaver.ui.navigator
+Bundle-ClassPath: ., lib/ili2db-5.2.2.jar, lib/ili2pg-5.2.2.jar
+Automatic-Module-Name: ch.so.agi.dbeaver.ili2pg
+Bundle-RequiredExecutionEnvironment: JavaSE-21
+Bundle-ActivationPolicy: lazy
