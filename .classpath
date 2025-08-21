@@ -5,5 +5,28 @@
 	<classpathentry kind="src" path="src"/>
 	<classpathentry exported="true" kind="lib" path="lib/ili2db-5.2.2.jar"/>
 	<classpathentry exported="true" kind="lib" path="lib/ili2pg-5.2.2.jar"/>
+	<classpathentry exported="true" kind="lib" path="lib/activation-1.1.1.jar"/>
+	<classpathentry exported="true" kind="lib" path="lib/antlr-2.7.7.jar"/>
+	<classpathentry exported="true" kind="lib" path="lib/base64-2.3.9.jar"/>
+	<classpathentry exported="true" kind="lib" path="lib/caffeine-2.6.2.jar"/>
+	<classpathentry exported="true" kind="lib" path="lib/checker-qual-3.31.0.jar"/>
+	<classpathentry exported="true" kind="lib" path="lib/ehibasics-1.4.1.jar"/>
+	<classpathentry exported="true" kind="lib" path="lib/ehisqlgen-1.16.1.jar"/>
+	<classpathentry exported="true" kind="lib" path="lib/ili2c-core-5.6.3.jar"/>
+	<classpathentry exported="true" kind="lib" path="lib/ili2c-tool-5.6.3.jar"/>
+	<classpathentry exported="true" kind="lib" path="lib/iox-api-1.0.3.jar"/>
+	<classpathentry exported="true" kind="lib" path="lib/iox-ili-1.23.4.jar"/>
+	<classpathentry exported="true" kind="lib" path="lib/jackson-core-2.9.7.jar"/>
+	<classpathentry exported="true" kind="lib" path="lib/javax.activation-api-1.2.0.jar"/>
+	<classpathentry exported="true" kind="lib" path="lib/jaxb-api-2.3.1.jar"/>
+	<classpathentry exported="true" kind="lib" path="lib/jaxb-core-2.3.0.1.jar"/>
+	<classpathentry exported="true" kind="lib" path="lib/jaxb-impl-2.3.2.jar"/>
+	<classpathentry exported="true" kind="lib" path="lib/jcl-over-slf4j-1.7.25.jar"/>
+	<classpathentry exported="true" kind="lib" path="lib/jna-4.5.1.jar"/>
+	<classpathentry exported="true" kind="lib" path="lib/jna-platform-4.5.1.jar"/>
+	<classpathentry exported="true" kind="lib" path="lib/jts-core-1.14.0.jar"/>
+	<classpathentry exported="true" kind="lib" path="lib/postgresql-42.6.0.jar"/>
+	<classpathentry exported="true" kind="lib" path="lib/slf4j-api-1.7.25.jar"/>
+	<classpathentry exported="true" kind="lib" path="lib/waffle-jna-1.9.1.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

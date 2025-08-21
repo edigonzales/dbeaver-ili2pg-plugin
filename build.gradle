@@ -1,0 +1,74 @@
+plugins {
+    id 'java'
+}
+
+repositories {
+    mavenCentral()
+}
+
+task downloadAndExtractIli2pg {
+    doLast {
+        def zipUrl = 'https://downloads.interlis.ch/ili2pg/ili2pg-5.2.2.zip'
+        def zipFile = file('build/ili2pg-5.2.2.zip')
+        def libDir = file('lib')
+        
+        // Create build directory if it doesn't exist
+        zipFile.parentFile.mkdirs()
+        
+        // Download the zip file
+        println "Downloading ${zipUrl}..."
+        ant.get(src: zipUrl, dest: zipFile)
+        
+        // Create lib directory
+        libDir.mkdirs()
+        
+        // Extract all jars from the zip file to lib root, excluding docs
+        copy {
+            from zipTree(zipFile)
+            into libDir
+            include '**/*.jar'
+            exclude 'docs/**'
+            eachFile { 
+                // Flatten the directory structure - put all files in root of libDir
+                relativePath = new RelativePath(true, relativePath.lastName)
+            }
+            includeEmptyDirs = false
+        }
+        
+        // Collect all jar files
+        def jarFiles = fileTree(libDir).include('**/*.jar').files
+        
+        // Generate Bundle-ClassPath entries
+        def bundleClassPathEntries = jarFiles.collect { jarFile ->
+            return "lib/${jarFile.name}"
+        }
+        
+        // Sort entries for consistent output
+        bundleClassPathEntries.sort()
+        
+        // Print Bundle-ClassPath header with line breaks and no trailing comma
+        if (!bundleClassPathEntries.isEmpty()) {
+            println "Bundle-ClassPath: .,"
+            bundleClassPathEntries.eachWithIndex { entry, index ->
+                if (index < bundleClassPathEntries.size() - 1) {
+                    println " ${entry},"
+                } else {
+                    println " ${entry}"
+                }
+            }
+        } else {
+            println "Bundle-ClassPath: ."
+        }
+        
+        // Alternative single println approach (removes trailing comma)
+        def formattedEntries = bundleClassPathEntries.collect { entry -> 
+            " ${entry}," 
+        }
+        formattedEntries.removeAll { it == null } // Remove any null entries
+        if (formattedEntries.size() > 0) {
+            formattedEntries[formattedEntries.size() - 1] = formattedEntries[formattedEntries.size() - 1].replace(',', '') // Remove last comma
+        }
+        println "Bundle-ClassPath: .,\n${formattedEntries.join('')}"
+        
+    }
+}
