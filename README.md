@@ -1,5 +1,10 @@
 # dbeaver-ili2pg-plugin
 
+## todo
+- Falls error -> gesamtes Logfile im show details
+
+
+## develop
 
 Workspace:
 ```

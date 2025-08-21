@@ -36,12 +36,9 @@ import org.jkiss.dbeaver.model.runtime.DBRProgressMonitor;
 import org.jkiss.dbeaver.model.runtime.VoidProgressMonitor;
 import org.jkiss.dbeaver.model.struct.DBSObject;
 import org.jkiss.dbeaver.model.struct.rdb.DBSSchema;
-import org.jkiss.dbeaver.runtime.jobs.DataSourceJob;
-import org.jkiss.dbeaver.utils.GeneralUtils;
 
 import ch.so.agi.dbeaver.ili2pg.log.Log;
 import ch.so.agi.dbeaver.ili2pg.jobs.Ili2pgExportJob;
-
 
 public class ExportSchemaHandler extends AbstractHandler {
 
