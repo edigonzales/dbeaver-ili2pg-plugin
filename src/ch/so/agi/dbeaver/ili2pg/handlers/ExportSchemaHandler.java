@@ -1,8 +1,5 @@
 package ch.so.agi.dbeaver.ili2pg.handlers;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -13,10 +10,10 @@ import org.eclipse.core.commands.AbstractHandler;
 import org.eclipse.core.commands.ExecutionEvent;
 import org.eclipse.core.commands.ExecutionException;
 import org.eclipse.core.runtime.IAdaptable;
-import org.eclipse.core.runtime.IStatus;
 import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.jface.viewers.ISelection;
 import org.eclipse.jface.viewers.IStructuredSelection;
+import org.eclipse.jface.viewers.LabelProvider;
 import org.eclipse.jface.window.Window;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.ui.IWorkbenchWindow;
@@ -25,8 +22,6 @@ import org.eclipse.ui.handlers.HandlerUtil;
 import org.jkiss.dbeaver.model.DBPDataSource;
 import org.jkiss.dbeaver.model.DBUtils;
 import org.jkiss.dbeaver.model.exec.DBCException;
-import org.jkiss.dbeaver.model.exec.DBCSession;
-import org.jkiss.dbeaver.model.exec.DBExecUtils;
 import org.jkiss.dbeaver.model.exec.jdbc.JDBCPreparedStatement;
 import org.jkiss.dbeaver.model.exec.jdbc.JDBCResultSet;
 import org.jkiss.dbeaver.model.exec.jdbc.JDBCSession;
@@ -38,6 +33,7 @@ import org.jkiss.dbeaver.model.struct.DBSObject;
 import org.jkiss.dbeaver.model.struct.rdb.DBSSchema;
 
 import ch.so.agi.dbeaver.ili2pg.log.Log;
+import ch.so.agi.dbeaver.ili2pg.ui.Ili2pgExportDialog;
 import ch.so.agi.dbeaver.ili2pg.jobs.Ili2pgExportJob;
 
 public class ExportSchemaHandler extends AbstractHandler {
@@ -45,6 +41,10 @@ public class ExportSchemaHandler extends AbstractHandler {
     @Override
     public Object execute(ExecutionEvent event) throws ExecutionException {
         System.err.println("******************************************** execute");
+        
+        String cmdId = event.getCommand().getId();
+        boolean withOptions = "ch.so.agi.dbeaver.ili2pg.commands.exportSchemaWithOptions".equals(cmdId);
+        
         Shell shell = HandlerUtil.getActiveShell(event);
         
         ISelection sel = HandlerUtil.getCurrentSelection(event);
@@ -84,28 +84,40 @@ public class ExportSchemaHandler extends AbstractHandler {
             return null;
         }
         
-        // 3) Let the user choose one
-        String chosen = null;
-        if (modelNames.size() > 1) {
-            ElementListSelectionDialog dlg = new ElementListSelectionDialog(shell, new org.eclipse.jface.viewers.LabelProvider());
-            dlg.setTitle("Select ili2pg model");
-            dlg.setMessage("Choose a model from schema: " + schema.getName());
-            dlg.setMultipleSelection(false);
-            dlg.setElements(modelNames.toArray(new String[0]));
-            if (dlg.open() != Window.OK) {
-                return null;
+        
+        if (!withOptions) {
+            // Falls Export ohne Optionen muss unter Umständen trotzdem
+            // das Modell-Auswahl-Fenster erscheinen.
+            String chosen = null;
+            if (modelNames.size() > 1) {
+                ElementListSelectionDialog dlg = new ElementListSelectionDialog(shell, new LabelProvider());
+                dlg.setTitle("Select ili2pg model");
+                dlg.setMessage("Choose a model from schema: " + schema.getName());
+                dlg.setMultipleSelection(false);
+                dlg.setElements(modelNames.toArray(new String[0]));
+                if (dlg.open() != Window.OK) {
+                    return null;
+                }
+                chosen = (String) dlg.getFirstResult();
+            } else {
+                chosen = modelNames.get(0);
             }
-            chosen = (String) dlg.getFirstResult();
+            if (chosen.contains("{")) {
+                chosen = chosen.substring(0, chosen.indexOf("{"));            
+            }
+            Log.info("chosen: " + chosen);
+            new Ili2pgExportJob(shell, schema, chosen).schedule();            
         } else {
-            chosen = modelNames.get(0);
+            System.err.println("********************");
+            
+            Ili2pgExportDialog dlg = new Ili2pgExportDialog(shell, schema.getName(), modelNames);
+            if (dlg.open() != Window.OK) return null;
+            
+            
+            return null;
         }
-        if (chosen.contains("{")) {
-            chosen = chosen.substring(0, chosen.indexOf("{"));            
-        }
+        
 
-        Log.info("chosen: " + chosen);
-
-        new Ili2pgExportJob(shell, schema, chosen).schedule();
         return null;
     }
     

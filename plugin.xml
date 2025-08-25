@@ -9,6 +9,12 @@
       id="ch.so.agi.dbeaver.ili2pg.commands.exportSchema"
       name="Export schema with ili2pg…"
       categoryId="ch.so.agi.dbeaver.ili2pg.commands.category"/>
+      
+  <command
+      id="ch.so.agi.dbeaver.ili2pg.commands.exportSchemaWithOptions"
+      name="Export schema with ili2pg (with options)…"
+      categoryId="ch.so.agi.dbeaver.ili2pg.commands.category"/>
+      
   <command id="ch.so.agi.dbeaver.ili2pg.commands.validateSchema"
            name="Validate schema with ili2pg…"
            categoryId="ch.so.agi.dbeaver.ili2pg.commands.category"/>
@@ -27,6 +33,19 @@
       </and>
     </enabledWhen>
       </handler>
+      
+  <handler
+      commandId="ch.so.agi.dbeaver.ili2pg.commands.exportSchemaWithOptions"
+      class="ch.so.agi.dbeaver.ili2pg.handlers.ExportSchemaHandler">
+    <enabledWhen>
+      <and>
+        <with variable="selection"><count value="1"/></with>
+        <iterate ifEmpty="false">
+          <adapt type="org.jkiss.dbeaver.model.struct.rdb.DBSSchema"/>
+        </iterate>
+      </and>
+    </enabledWhen>
+  </handler>
 
   <handler commandId="ch.so.agi.dbeaver.ili2pg.commands.validateSchema"
            class="ch.so.agi.dbeaver.ili2pg.handlers.ValidateSchemaHandler">
@@ -63,6 +82,9 @@
       <command
           commandId="ch.so.agi.dbeaver.ili2pg.commands.exportSchema"
           label="Export schema…"/>
+      <command
+          commandId="ch.so.agi.dbeaver.ili2pg.commands.exportSchemaWithOptions"
+          label="Export schema with options…"/>
       <command
           commandId="ch.so.agi.dbeaver.ili2pg.commands.validateSchema"
           label="Validate schema…"/>
