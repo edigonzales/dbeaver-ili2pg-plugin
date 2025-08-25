@@ -88,6 +88,7 @@ public class Ili2pgExportJob extends Job {
                 String userHome = System.getProperty("user.home");
                 String xtfPath  = Paths.get(userHome, schemaName + ".xtf").toAbsolutePath().toString();
                 String logPath  = Paths.get(userHome, schemaName + ".log").toAbsolutePath().toString();
+                listener.setLogfileName(logPath);
                 settings.setXtffile(xtfPath);
                 settings.setLogfile(logPath);
 
