@@ -42,12 +42,14 @@ public class Ili2pgExportJob extends Job {
     private final Shell parentShell;
     private final DBSSchema schema;
     private final String modelName;
+    private final Config settings;
 
-    public Ili2pgExportJob(Shell parentShell, DBSSchema schema, String modelName) {
+    public Ili2pgExportJob(Shell parentShell, DBSSchema schema, String modelName, Config settings) {
         super("ili2pg export: " + schema.getName());
         this.parentShell = parentShell;
         this.schema = schema;
         this.modelName = modelName;
+        this.settings = settings;
         setUser(true);   // show progress to the user
         setPriority(LONG);
         // Keep the job result visible in the Progress view after finish
@@ -78,7 +80,7 @@ public class Ili2pgExportJob extends Job {
             try (JDBCSession session = DBUtils.openMetaSession(new VoidProgressMonitor(), ds, this.getName())) {
                 Connection conn = session.getOriginal(); // <-- do not close
 
-                Config settings = createConfig();
+                //Config settings = createConfig();
                 settings.setJdbcConnection(conn);
 
                 settings.setFunction(Config.FC_EXPORT);

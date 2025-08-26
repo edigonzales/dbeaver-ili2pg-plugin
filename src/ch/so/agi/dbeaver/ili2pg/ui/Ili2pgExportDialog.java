@@ -95,46 +95,46 @@ public class Ili2pgExportDialog extends TitleAreaDialog {
         GridDataFactory.fillDefaults().span(3, 1).applyTo(disableValidationBtn);
         disableValidationBtn.addListener(SWT.Selection, l -> validate());
 
-        overwriteBtn = new Button(container, SWT.CHECK);
-        overwriteBtn.setText("Overwrite existing output");
-        GridDataFactory.fillDefaults().span(3, 1).applyTo(overwriteBtn);
-        overwriteBtn.addListener(SWT.Selection, l -> validate());
+//        overwriteBtn = new Button(container, SWT.CHECK);
+//        overwriteBtn.setText("Overwrite existing output");
+//        GridDataFactory.fillDefaults().span(3, 1).applyTo(overwriteBtn);
+//        overwriteBtn.addListener(SWT.Selection, l -> validate());
 
         // Dataset(s)
         new Label(container, SWT.NONE).setText("Dataset(s):");
         datasetsText = new Text(container, SWT.BORDER);
-        datasetsText.setMessage("e.g. dataset1, dataset2");
+        datasetsText.setMessage("e.g. dataset1;dataset2");
         GridDataFactory.fillDefaults().grab(true, false).span(2, 1).applyTo(datasetsText);
 
         // Basket(s)
         new Label(container, SWT.NONE).setText("Basket(s):");
         basketsText = new Text(container, SWT.BORDER);
-        basketsText.setMessage("e.g. basketId1, basketId2");
+        basketsText.setMessage("e.g. basketId1;basketId2");
         GridDataFactory.fillDefaults().grab(true, false).span(2, 1).applyTo(basketsText);
 
         // Topic(s)
         new Label(container, SWT.NONE).setText("Topic(s):");
         topicsText = new Text(container, SWT.BORDER);
-        topicsText.setMessage("e.g. Model.TopicA, Model.TopicB");
+        topicsText.setMessage("e.g. Model.TopicA;Model.TopicB");
         GridDataFactory.fillDefaults().grab(true, false).span(2, 1).applyTo(topicsText);
 
         // Output path row
-        new Label(container, SWT.NONE).setText("Output file:");
-        outputText = new Text(container, SWT.BORDER);
-        GridDataFactory.fillDefaults().grab(true, false).applyTo(outputText);
-        outputText.addModifyListener(e -> validate());
-
-        Button browse = new Button(container, SWT.PUSH);
-        browse.setText("Browse…");
-        browse.addSelectionListener(new SelectionAdapter() {
-            @Override public void widgetSelected(SelectionEvent e) {
-                FileDialog fd = new FileDialog(getShell(), SWT.SAVE);
-                fd.setText("Choose export file");
-                fd.setFilterExtensions(new String[] { "*.xtf", "*.*" });
-                String sel = fd.open();
-                if (sel != null) outputText.setText(sel);
-            }
-        });
+//        new Label(container, SWT.NONE).setText("Output file:");
+//        outputText = new Text(container, SWT.BORDER);
+//        GridDataFactory.fillDefaults().grab(true, false).applyTo(outputText);
+//        outputText.addModifyListener(e -> validate());
+//
+//        Button browse = new Button(container, SWT.PUSH);
+//        browse.setText("Browse…");
+//        browse.addSelectionListener(new SelectionAdapter() {
+//            @Override public void widgetSelected(SelectionEvent e) {
+//                FileDialog fd = new FileDialog(getShell(), SWT.SAVE);
+//                fd.setText("Choose export file");
+//                fd.setFilterExtensions(new String[] { "*.xtf", "*.*" });
+//                String sel = fd.open();
+//                if (sel != null) outputText.setText(sel);
+//            }
+//        });
 
         return area;
     }
@@ -178,7 +178,7 @@ public class Ili2pgExportDialog extends TitleAreaDialog {
         String error = null;
         if (modelNames.isEmpty()) error = "No models found in this schema.";
         else if (selExisting.isEmpty()) error = "Please select a model.";
-        else if (out.isEmpty()) error = "Please choose an output file.";
+        //else if (out.isEmpty()) error = "Please choose an output file.";
 
         setErrorMessage(error);
         Button ok = getButton(IDialogConstants.OK_ID);
@@ -201,11 +201,11 @@ public class Ili2pgExportDialog extends TitleAreaDialog {
             : (String) selExport.getFirstElement();
 
         this.disableValidation = disableValidationBtn.getSelection();
-        this.overwrite         = overwriteBtn.getSelection();
-        this.outputPath        = outputText.getText().trim();
-        this.datasets          = datasetsText != null ? datasetsText.getText().trim() : "";
-        this.baskets           = basketsText  != null ? basketsText.getText().trim()  : "";
-        this.topics            = topicsText   != null ? topicsText.getText().trim()   : "";
+        //this.overwrite         = overwriteBtn.getSelection();
+        //this.outputPath        = outputText.getText().trim();
+        this.datasets          = datasetsText.getText().isBlank() ? null : datasetsText.getText().trim();
+        this.baskets           = basketsText.getText().isBlank() ? null : basketsText.getText().trim();
+        this.topics            = topicsText.getText().isBlank() ? null : topicsText.getText().trim();
 
         super.okPressed();
     }

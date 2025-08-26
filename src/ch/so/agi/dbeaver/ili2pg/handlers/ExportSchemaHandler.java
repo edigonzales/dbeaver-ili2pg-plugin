@@ -34,6 +34,7 @@ import org.jkiss.dbeaver.model.struct.rdb.DBSSchema;
 
 import ch.so.agi.dbeaver.ili2pg.log.Log;
 import ch.so.agi.dbeaver.ili2pg.ui.Ili2pgExportDialog;
+import ch.ehi.ili2db.gui.Config;
 import ch.so.agi.dbeaver.ili2pg.jobs.Ili2pgExportJob;
 
 public class ExportSchemaHandler extends AbstractHandler {
@@ -85,6 +86,7 @@ public class ExportSchemaHandler extends AbstractHandler {
         }
         
         
+        Config settings = createConfig();
         if (!withOptions) {
             // Falls Export ohne Optionen muss unter Umständen trotzdem
             // das Modell-Auswahl-Fenster erscheinen.
@@ -106,12 +108,21 @@ public class ExportSchemaHandler extends AbstractHandler {
                 chosen = chosen.substring(0, chosen.indexOf("{"));            
             }
             Log.info("chosen: " + chosen);
-            new Ili2pgExportJob(shell, schema, chosen).schedule();            
+            new Ili2pgExportJob(shell, schema, chosen, settings).schedule();            
         } else {
             System.err.println("********************");
             
             Ili2pgExportDialog dlg = new Ili2pgExportDialog(shell, schema.getName(), modelNames);
             if (dlg.open() != Window.OK) return null;
+            
+            String modelName = dlg.getSelectedModel();
+            
+            if (dlg.isDisableValidation()) {
+                settings.setValidation(false);
+            }
+            
+            System.err.println("***" + dlg.getDatasets().length());
+            System.err.println("***" + dlg.isDisableValidation());
             
             
             return null;
@@ -119,6 +130,12 @@ public class ExportSchemaHandler extends AbstractHandler {
         
 
         return null;
+    }
+    
+    private Config createConfig() {
+        Config settings = new Config();
+        new ch.ehi.ili2pg.PgMain().initConfig(settings);
+        return settings;
     }
     
     private DBSSchema extractSchema(Object element) {
