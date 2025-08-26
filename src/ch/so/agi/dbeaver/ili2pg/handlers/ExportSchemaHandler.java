@@ -121,7 +121,7 @@ public class ExportSchemaHandler extends AbstractHandler {
                 settings.setValidation(false);
             }
             
-            System.err.println("***" + dlg.getDatasets().length());
+            System.err.println("***" + dlg.getDatasets());
             System.err.println("***" + dlg.isDisableValidation());
             
             
