@@ -5,6 +5,17 @@
 
 <extension point="org.eclipse.ui.commands">
   <category id="ch.so.agi.dbeaver.ili2pg.commands.category" name="ILI2PG"/>
+  
+  <command
+      id="ch.so.agi.dbeaver.ili2pg.commands.importSchema"
+      name="Create schema with ili2pg…"
+      categoryId="ch.so.agi.dbeaver.ili2pg.commands.category"/>
+
+  <command
+      id="ch.so.agi.dbeaver.ili2pg.commands.importData"
+      name="Import data with ili2pg…"
+      categoryId="ch.so.agi.dbeaver.ili2pg.commands.category"/>
+    
   <command
       id="ch.so.agi.dbeaver.ili2pg.commands.exportSchema"
       name="Export schema with ili2pg…"
@@ -21,6 +32,36 @@
 </extension>
 
 <extension point="org.eclipse.ui.handlers">
+    <handler
+        commandId="ch.so.agi.dbeaver.ili2pg.commands.importSchema"
+        class="ch.so.agi.dbeaver.ili2pg.handlers.ExportSchemaHandler">
+      <enabledWhen>
+        <and>
+          <with variable="selection"><count value="1"/></with>
+          <iterate ifEmpty="false">
+            <or>
+              <adapt type="org.jkiss.dbeaver.model.navigator.DBNDataSource"/>
+              <adapt type="org.jkiss.dbeaver.model.DBPDataSourceContainer"/>
+            </or>
+          </iterate>
+        </and>
+      </enabledWhen>
+    </handler>
+
+
+  <handler
+      commandId="ch.so.agi.dbeaver.ili2pg.commands.importData"
+      class="ch.so.agi.dbeaver.ili2pg.handlers.ExportSchemaHandler">
+    <enabledWhen>
+      <and>
+        <with variable="selection"><count value="1"/></with>
+        <iterate ifEmpty="false">
+          <adapt type="org.jkiss.dbeaver.model.struct.rdb.DBSSchema"/>
+        </iterate>
+      </and>
+    </enabledWhen>
+  </handler>
+
   <handler
       commandId="ch.so.agi.dbeaver.ili2pg.commands.exportSchema"
       class="ch.so.agi.dbeaver.ili2pg.handlers.ExportSchemaHandler">
@@ -48,7 +89,7 @@
   </handler>
 
   <handler commandId="ch.so.agi.dbeaver.ili2pg.commands.validateSchema"
-           class="ch.so.agi.dbeaver.ili2pg.handlers.ValidateSchemaHandler">
+           class="ch.so.agi.dbeaver.ili2pg.handlers.ExportSchemaHandler">
     <enabledWhen>
       <and>
         <with variable="selection"><count value="1"/></with>
@@ -68,99 +109,98 @@
         id="ch.so.agi.dbeaver.ili2pg.popup.menu"
         label="ili2pg"
         icon="icons/interlis.png">
-      <!-- Show submenu only for a single schema selection -->
+      
       <visibleWhen>
         <and>
           <with variable="selection"><count value="1"/></with>
           <iterate ifEmpty="false">
-            <adapt type="org.jkiss.dbeaver.model.struct.rdb.DBSSchema"/>
+            <or>
+              <adapt type="org.jkiss.dbeaver.model.struct.rdb.DBSSchema"/>
+              <adapt type="org.jkiss.dbeaver.model.navigator.DBNDataSource"/>
+              <adapt type="org.jkiss.dbeaver.model.DBPDataSourceContainer"/>
+            </or>
           </iterate>
         </and>
       </visibleWhen>
-
+      
       <!-- Commands inside the submenu -->
+      <!-- Create schema… only on a database/connection -->
+      <command
+          commandId="ch.so.agi.dbeaver.ili2pg.commands.importSchema"
+          label="Create schema…">
+        <visibleWhen>
+          <and>
+            <with variable="selection"><count value="1"/></with>
+            <iterate ifEmpty="false">
+              <or>
+                <adapt type="org.jkiss.dbeaver.model.navigator.DBNDataSource"/>
+                <adapt type="org.jkiss.dbeaver.model.DBPDataSourceContainer"/>
+              </or>
+            </iterate>
+          </and>
+        </visibleWhen>
+      </command>
+
+      <!-- Import data… only on a schema -->
+      <command
+          commandId="ch.so.agi.dbeaver.ili2pg.commands.importData"
+          label="Import data…">
+        <visibleWhen>
+          <and>
+            <with variable="selection"><count value="1"/></with>
+            <iterate ifEmpty="false">
+              <adapt type="org.jkiss.dbeaver.model.struct.rdb.DBSSchema"/>
+            </iterate>
+          </and>
+        </visibleWhen>
+      </command>
+
+      <!-- Export schema… only on a schema -->
       <command
           commandId="ch.so.agi.dbeaver.ili2pg.commands.exportSchema"
-          label="Export schema…"/>
+          label="Export schema…">
+        <visibleWhen>
+          <and>
+            <with variable="selection"><count value="1"/></with>
+            <iterate ifEmpty="false">
+              <adapt type="org.jkiss.dbeaver.model.struct.rdb.DBSSchema"/>
+            </iterate>
+          </and>
+        </visibleWhen>
+      </command>
+
+      <!-- Export schema with options… only on a schema -->
       <command
           commandId="ch.so.agi.dbeaver.ili2pg.commands.exportSchemaWithOptions"
-          label="Export schema with options…"/>
+          label="Export schema with options…">
+        <visibleWhen>
+          <and>
+            <with variable="selection"><count value="1"/></with>
+            <iterate ifEmpty="false">
+              <adapt type="org.jkiss.dbeaver.model.struct.rdb.DBSSchema"/>
+            </iterate>
+          </and>
+        </visibleWhen>
+      </command>
+
+      <!-- Validate schema… only on a schema -->
       <command
           commandId="ch.so.agi.dbeaver.ili2pg.commands.validateSchema"
-          label="Validate schema…"/>
+          label="Validate schema…">
+        <visibleWhen>
+          <and>
+            <with variable="selection"><count value="1"/></with>
+            <iterate ifEmpty="false">
+              <adapt type="org.jkiss.dbeaver.model.struct.rdb.DBSSchema"/>
+            </iterate>
+          </and>
+        </visibleWhen>
+      </command>
 
       <!-- Optional: allow other plugins (or you later) to add below -->
       <!-- <separator name="ili2pg.additions" visible="true"/> -->
     </menu>
   </menuContribution>
 </extension>
-
-<extension point="org.eclipse.ui.menus">
-  <menuContribution locationURI="menu:org.eclipse.ui.main.menu?after=additions">
-    <command commandId="ch.so.agi.dbeaver.ili2pg.commands.exportSchema" label="Test: Export schema"/>
-  </menuContribution>
-</extension>
-
-   <extension
-         point="org.eclipse.ui.commands">
-      <category
-            id="ch.so.agi.dbeaver.ili2pg.commands.category"
-            name="Sample Category">
-      </category>
-      <command
-            categoryId="ch.so.agi.dbeaver.ili2pg.commands.category"
-            name="Sample Command"
-            id="ch.so.agi.dbeaver.ili2pg.commands.sampleCommand">
-      </command>
-   </extension>
-   <extension
-         point="org.eclipse.ui.handlers">
-      <handler
-            class="ch.so.agi.dbeaver.ili2pg.handlers.SampleHandler"
-            commandId="ch.so.agi.dbeaver.ili2pg.commands.sampleCommand">
-      </handler>
-   </extension>
-   <extension
-         point="org.eclipse.ui.bindings">
-      <key
-            commandId="ch.so.agi.dbeaver.ili2pg.commands.sampleCommand"
-            schemeId="org.eclipse.ui.defaultAcceleratorConfiguration"
-            contextId="org.eclipse.ui.contexts.window"
-            sequence="M1+6">
-      </key>
-   </extension>
-   <extension
-         point="org.eclipse.ui.menus">
-      <menuContribution
-            locationURI="menu:org.eclipse.ui.main.menu?after=additions">
-         <menu
-               id="ch.so.agi.dbeaver.ili2pg.menus.sampleMenu"
-               label="Sample Menu"
-               mnemonic="M">
-            <command
-                  commandId="ch.so.agi.dbeaver.ili2pg.commands.sampleCommand"
-                  id="ch.so.agi.dbeaver.ili2pg.menus.sampleCommand"
-                  mnemonic="S">
-            </command>
-            <command
-                  commandId="ch.so.agi.dbeaver.ili2pg.commands.exportSchema"
-                  id="ch.so.agi.dbeaver.ili2pg.menus.exportSchemaCommand"
-                  mnemonic="E">
-            </command>            
-         </menu>
-      </menuContribution>
-      <menuContribution
-            locationURI="toolbar:org.eclipse.ui.main.toolbar?after=additions">
-         <toolbar
-               id="ch.so.agi.dbeaver.ili2pg.toolbars.sampleToolbar">
-            <command
-                  id="ch.so.agi.dbeaver.ili2pg.toolbars.sampleCommand"
-                  commandId="ch.so.agi.dbeaver.ili2pg.commands.sampleCommand"
-                  icon="icons/sample.png"
-                  tooltip="Say hello world">
-            </command>
-         </toolbar>
-      </menuContribution>
-   </extension>
 
 </plugin>

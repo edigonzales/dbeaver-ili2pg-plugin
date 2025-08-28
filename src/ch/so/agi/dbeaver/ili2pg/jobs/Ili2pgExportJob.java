@@ -28,6 +28,8 @@ import org.jkiss.dbeaver.model.connection.DBPConnectionConfiguration;
 import org.jkiss.dbeaver.model.exec.DBCException;
 import org.jkiss.dbeaver.model.exec.jdbc.JDBCSession;
 import org.jkiss.dbeaver.model.runtime.VoidProgressMonitor;
+import org.jkiss.dbeaver.model.struct.DBSInstance;
+import org.jkiss.dbeaver.model.struct.DBSObject;
 import org.jkiss.dbeaver.model.struct.rdb.DBSSchema;
 
 import ch.ehi.basics.logging.EhiLogger;
@@ -37,20 +39,30 @@ import ch.ehi.ili2db.gui.Config;
 import ch.so.agi.dbeaver.ili2pg.log.EclipseConsoleLogListener;
 
 public class Ili2pgExportJob extends Job {
+    public enum Mode { SCHEMA_IMPORT, IMPORT, EXPORT, VALIDATE }
+    
     private static final String PLUGIN_ID = "ch.so.agi.dbeaver.ili2pg";
 
     private final Shell parentShell;
-    private final DBSSchema schema;
+    private DBSSchema schema;
+    private DBSInstance database; 
     private final String modelName;
     private final Config settings;
+    private final Mode mode; 
 
-    public Ili2pgExportJob(Shell parentShell, DBSSchema schema, String modelName, Config settings) {
-        super("ili2pg export: " + schema.getName());
+    public Ili2pgExportJob(Shell parentShell, DBSObject dbsObject, String modelName, Config settings, Mode mode) {
+        //super((mode == Mode.EXPORT ? "ili2pg export: " : "ili2pg validate: ") + schema.getName());
+        super("ili2pg job");
         this.parentShell = parentShell;
-        this.schema = schema;
+        if (dbsObject instanceof DBSSchema) {
+            this.schema = (DBSSchema) dbsObject;
+        } else {
+            this.database = (DBSInstance) dbsObject;
+        }
         this.modelName = modelName;
         this.settings = settings;
-        setUser(true);   // show progress to the user
+        this.mode = mode;
+        setUser(true); // show progress to the user
         setPriority(LONG);
         // Keep the job result visible in the Progress view after finish
         setProperty(IProgressConstants.KEEP_PROPERTY, Boolean.TRUE);
@@ -61,63 +73,158 @@ public class Ili2pgExportJob extends Job {
         MessageConsole console = getConsole("ili2pg");
         console.clearConsole();
         showConsole(console);
-
+        
         try (MessageConsoleStream out = console.newMessageStream();
                 MessageConsoleStream err = console.newMessageStream()) {
-            final String schemaName = schema.getName();
-            DBPDataSourceContainer c = schema.getDataSource().getContainer();
-            DBPConnectionConfiguration cc = c.getActualConnectionConfiguration();
-
-            String jdbcUrl = cc.getUrl();
-            String hostPort = Objects.toString(cc.getHostPort(), "");
-            String user     = cc.getUserName();
-
-            DBPDataSource ds = schema.getDataSource();
-
+            
             EclipseConsoleLogListener listener = new EclipseConsoleLogListener(out, err);
             EhiLogger.getInstance().addListener(listener);
 
-            try (JDBCSession session = DBUtils.openMetaSession(new VoidProgressMonitor(), ds, this.getName())) {
-                Connection conn = session.getOriginal(); // <-- do not close
+            if (mode == Mode.SCHEMA_IMPORT) {
+                DBPDataSourceContainer container = database.getDataSource().getContainer();
+                DBPConnectionConfiguration cc = container.getActualConnectionConfiguration();
+                
+                String jdbcUrl = cc.getUrl();
+                String hostPort = Objects.toString(cc.getHostPort(), "");
+                String user     = cc.getUserName();
 
-                //Config settings = createConfig();
-                settings.setJdbcConnection(conn);
+                DBPDataSource ds = container.getDataSource();
+                try (JDBCSession session = DBUtils.openMetaSession(new VoidProgressMonitor(), ds, this.getName())) {
+                    Connection conn = session.getOriginal(); // <-- do not close
+                    settings.setJdbcConnection(conn);
 
-                settings.setFunction(Config.FC_EXPORT);
-                settings.setModels(modelName);
-                settings.setDbschema(schemaName);
+                    settings.setDburl(jdbcUrl);
+                    settings.setDbport(hostPort);
+                    settings.setDbusr(user != null ? user : "");
+                    settings.setDbpwd(cc.getUserPassword() != null ? cc.getUserPassword() : "");
 
-                String userHome = System.getProperty("user.home");
-                String xtfPath  = Paths.get(userHome, schemaName + ".xtf").toAbsolutePath().toString();
-                String logPath  = Paths.get(userHome, schemaName + ".log").toAbsolutePath().toString();
-                listener.setLogfileName(logPath);
-                settings.setXtffile(xtfPath);
-                settings.setLogfile(logPath);
+                    String userHome = System.getProperty("user.home");
+                    String logPath  = Paths.get(userHome, settings.getDbschema() + ".log").toAbsolutePath().toString();
+                    listener.setLogfileName(logPath);
+                    settings.setLogfile(logPath);                    
 
-                settings.setDburl(jdbcUrl);
-                settings.setDbport(hostPort);
-                settings.setDbusr(user != null ? user : "");
-                settings.setDbpwd(cc.getUserPassword() != null ? cc.getUserPassword() : "");
+                    settings.setFunction(Config.FC_SCHEMAIMPORT);
+                    
+                    Ili2db.readSettingsFromDb(settings);
+                    Ili2db.run(settings, null);
+                } catch (DBCException | SQLException e) {
+                    err.println("! JDBC/DB error: " + e.getMessage());
+                    return Status.error(e.getMessage(), e);
+                } catch (Ili2dbException e) {
+                    err.println("Error: " + e.getMessage());
+                    return Status.error(e.getMessage(), e);
+                } finally {
+                    EhiLogger.getInstance().removeListener(listener);
+                }
+            } else if (mode == Mode.IMPORT) {
+                final String schemaName = schema.getName();
+                DBPDataSourceContainer c = schema.getDataSource().getContainer();
+                DBPConnectionConfiguration cc = c.getActualConnectionConfiguration();
 
-                Ili2db.readSettingsFromDb(settings);
-                Ili2db.run(settings, null);
-            } catch (DBCException | SQLException e) {
-                err.println("! JDBC/DB error: " + e.getMessage());
-                return Status.error(e.getMessage(), e);
-            } catch (Ili2dbException e) {
-                err.println("Error: " + e.getMessage());
-                return Status.error(e.getMessage(), e);
-            } finally {
-                EhiLogger.getInstance().removeListener(listener);
+                String jdbcUrl = cc.getUrl();
+                String hostPort = Objects.toString(cc.getHostPort(), "");
+                String user     = cc.getUserName();
+
+                DBPDataSource ds = schema.getDataSource();
+
+
+                try (JDBCSession session = DBUtils.openMetaSession(new VoidProgressMonitor(), ds, this.getName())) {
+                    Connection conn = session.getOriginal(); // <-- do not close
+
+                    //Config settings = createConfig();
+                    settings.setJdbcConnection(conn);
+
+                    settings.setModels(modelName);
+                    settings.setDbschema(schemaName);
+
+                    settings.setDburl(jdbcUrl);
+                    settings.setDbport(hostPort);
+                    settings.setDbusr(user != null ? user : "");
+                    settings.setDbpwd(cc.getUserPassword() != null ? cc.getUserPassword() : "");
+
+                    String userHome = System.getProperty("user.home");
+                    String logPath  = Paths.get(userHome, schemaName + ".log").toAbsolutePath().toString();
+                    listener.setLogfileName(logPath);
+                    settings.setLogfile(logPath);     
+                    settings.setItfTransferfile(false);
+                    
+                    // TODO / FIXME
+                    // - vielleicht srscode?
+                    // - vielleicht t-ili_tid Zeugs
+                    // - genau schauen bei AbtractMain 
+                    // - versuchen EhiLogger trace (suchen in Github bei Claude)
+
+                    settings.setFunction(Config.FC_IMPORT);
+                    
+                    Ili2db.readSettingsFromDb(settings);
+                    Ili2db.run(settings, null);
+                } catch (DBCException | SQLException e) {
+                    err.println("! JDBC/DB error: " + e.getMessage());
+                    return Status.error(e.getMessage(), e);
+                } catch (Ili2dbException e) {
+                    err.println("Error: " + e.getMessage());
+                    return Status.error(e.getMessage(), e);
+                } finally {
+                    EhiLogger.getInstance().removeListener(listener);
+                }
+
+            } else {
+                final String schemaName = schema.getName();
+                DBPDataSourceContainer c = schema.getDataSource().getContainer();
+                DBPConnectionConfiguration cc = c.getActualConnectionConfiguration();
+
+                String jdbcUrl = cc.getUrl();
+                String hostPort = Objects.toString(cc.getHostPort(), "");
+                String user     = cc.getUserName();
+
+                DBPDataSource ds = schema.getDataSource();
+
+
+                try (JDBCSession session = DBUtils.openMetaSession(new VoidProgressMonitor(), ds, this.getName())) {
+                    Connection conn = session.getOriginal(); // <-- do not close
+
+                    //Config settings = createConfig();
+                    settings.setJdbcConnection(conn);
+
+                    settings.setModels(modelName);
+                    settings.setDbschema(schemaName);
+
+                    settings.setDburl(jdbcUrl);
+                    settings.setDbport(hostPort);
+                    settings.setDbusr(user != null ? user : "");
+                    settings.setDbpwd(cc.getUserPassword() != null ? cc.getUserPassword() : "");
+
+                    String userHome = System.getProperty("user.home");
+                    String logPath  = Paths.get(userHome, schemaName + ".log").toAbsolutePath().toString();
+                    listener.setLogfileName(logPath);
+                    settings.setLogfile(logPath);                    
+
+                    if (mode == Mode.EXPORT) {
+                        settings.setFunction(Config.FC_EXPORT);
+
+                        String xtfPath  = Paths.get(userHome, schemaName + ".xtf").toAbsolutePath().toString();
+                        settings.setXtffile(xtfPath);
+                    } else {
+                        settings.setFunction(Config.FC_VALIDATE);                    
+                    }
+                    
+                    Ili2db.readSettingsFromDb(settings);
+                    Ili2db.run(settings, null);
+                } catch (DBCException | SQLException e) {
+                    err.println("! JDBC/DB error: " + e.getMessage());
+                    return Status.error(e.getMessage(), e);
+                } catch (Ili2dbException e) {
+                    err.println("Error: " + e.getMessage());
+                    return Status.error(e.getMessage(), e);
+                } finally {
+                    EhiLogger.getInstance().removeListener(listener);
+                }
             }
-
-            doneAsync("ili2pg export finished",
-                      "Model: " + modelName + "\nSchema: " + schema.getName());
-            //out.println("=== ili2pg export completed " + LocalDateTime.now() + " ===");
+       
+            doneAsync("ili2pg job finished", "todo: sinnvolle Nachricht");
             return Status.OK_STATUS;
-
         } catch (Exception e) {
-            return error("Export failed: " + e.getMessage(), e);
+            return error("ili2pg job failed: " + e.getMessage(), e);
         } 
     }
 

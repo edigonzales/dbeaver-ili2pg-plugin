@@ -29,106 +29,242 @@ import org.jkiss.dbeaver.model.impl.jdbc.JDBCUtils;
 import org.jkiss.dbeaver.model.navigator.DBNDatabaseItem;
 import org.jkiss.dbeaver.model.runtime.DBRProgressMonitor;
 import org.jkiss.dbeaver.model.runtime.VoidProgressMonitor;
+import org.jkiss.dbeaver.model.struct.DBSInstance;
 import org.jkiss.dbeaver.model.struct.DBSObject;
 import org.jkiss.dbeaver.model.struct.rdb.DBSSchema;
 
 import ch.so.agi.dbeaver.ili2pg.log.Log;
 import ch.so.agi.dbeaver.ili2pg.ui.Ili2pgExportDialog;
+import ch.so.agi.dbeaver.ili2pg.ui.Ili2pgImportSchemaDialog;
+import ch.so.agi.dbeaver.ili2pg.ui.Ili2pgImportDialog;
 import ch.ehi.ili2db.gui.Config;
 import ch.so.agi.dbeaver.ili2pg.jobs.Ili2pgExportJob;
 
 public class ExportSchemaHandler extends AbstractHandler {
+    private static final String CMD_SCHEMA_IMPORT = "ch.so.agi.dbeaver.ili2pg.commands.importSchema";
+    private static final String CMD_DATA_IMPORT = "ch.so.agi.dbeaver.ili2pg.commands.importData";
+    private static final String CMD_EXPORT = "ch.so.agi.dbeaver.ili2pg.commands.exportSchema";
+    private static final String CMD_EXPORT_OPTS = "ch.so.agi.dbeaver.ili2pg.commands.exportSchemaWithOptions";
+    private static final String CMD_VALIDATE = "ch.so.agi.dbeaver.ili2pg.commands.validateSchema";
+
+    private enum Action {
+        SCHEMA_IMPORT, IMPORT, EXPORT, EXPORT_WITH_OPTIONS, VALIDATE;
+
+        static Action from(String id) {
+            if (CMD_EXPORT.equals(id)) {
+                return EXPORT;
+            }
+            if (CMD_EXPORT_OPTS.equals(id)) {
+                return EXPORT_WITH_OPTIONS;
+            }
+            if (CMD_VALIDATE.equals(id)) {
+                return VALIDATE;
+            } if (CMD_SCHEMA_IMPORT.equals(id)) {
+                return SCHEMA_IMPORT;
+            }  
+            if (CMD_DATA_IMPORT.equals(id)) {
+                return IMPORT;
+            }
+            return EXPORT;
+        }
+    }
 
     @Override
-    public Object execute(ExecutionEvent event) throws ExecutionException {
-        System.err.println("******************************************** execute");
-        
-        String cmdId = event.getCommand().getId();
-        boolean withOptions = "ch.so.agi.dbeaver.ili2pg.commands.exportSchemaWithOptions".equals(cmdId);
-        
+    public Object execute(ExecutionEvent event) throws ExecutionException { 
         Shell shell = HandlerUtil.getActiveShell(event);
-        
+        Action action = Action.from(event.getCommand().getId());
+                
         ISelection sel = HandlerUtil.getCurrentSelection(event);
         if (!(sel instanceof IStructuredSelection) || ((IStructuredSelection) sel).isEmpty()) {
-            return null; // nothing selected
+            return null;
         }
         Object first = ((IStructuredSelection) sel).getFirstElement();
-        
-        // 1) Resolve the schema from the current selection
-        DBSSchema schema = extractSchema(first);
-        if (schema == null) {
-            IWorkbenchWindow window = HandlerUtil.getActiveWorkbenchWindowChecked(event);
-            MessageDialog.openInformation(
-                    window.getShell(),
-                    "",
-                    "Not a PostgreSQL schema."); 
 
-            return null;
-        }
+        
+        if (action == Action.SCHEMA_IMPORT) {
+            DBSInstance database = extractDatabase(first);
+            if (database == null) {
+                IWorkbenchWindow window = HandlerUtil.getActiveWorkbenchWindowChecked(event);
+                MessageDialog.openInformation(
+                        window.getShell(),
+                        "",
+                        "Not a PostgreSQL database."); 
 
-        Log.info("Schema: " + schema);
-        
-        // 2) Read model names from schema.t_ili2db_model
-        List<String> modelNames;
-        try {
-            modelNames = loadModelNames(schema);
-        } catch (Exception e) {
-            MessageDialog.openError(shell, "ili2pg", "Failed to load model names: " + e.getMessage());
-            return null;
-        }
-        
-        Log.info("modelNames: " + modelNames);
-        
-        if (modelNames.isEmpty()) {
-            MessageDialog.openInformation(shell, "ili2pg",
-                    "No rows in " + schema.getName() + ".t_ili2db_model (or table missing).");
-            return null;
-        }
-        
-        
-        Config settings = createConfig();
-        if (!withOptions) {
-            // Falls Export ohne Optionen muss unter Umständen trotzdem
-            // das Modell-Auswahl-Fenster erscheinen.
-            String chosen = null;
-            if (modelNames.size() > 1) {
-                ElementListSelectionDialog dlg = new ElementListSelectionDialog(shell, new LabelProvider());
-                dlg.setTitle("Select ili2pg model");
-                dlg.setMessage("Choose a model from schema: " + schema.getName());
-                dlg.setMultipleSelection(false);
-                dlg.setElements(modelNames.toArray(new String[0]));
-                if (dlg.open() != Window.OK) {
-                    return null;
+                return null;
+            }
+            Log.info("Database: " + database);
+
+            Ili2pgImportSchemaDialog dlg = new Ili2pgImportSchemaDialog(shell);
+            if (dlg.open() == Window.OK) {
+                String ini = dlg.getIniPath();
+                String ilidata = dlg.getIliDataRef();
+                String schema = dlg.getTargetSchema();
+                // schedule your import job with these values
+                
+                Config settings = createConfig();
+                if (ini != null) {
+                    settings.setMetaConfigFile(ini);                    
+                } else {
+                    settings.setMetaConfigFile(ilidata);                    
+
                 }
-                chosen = (String) dlg.getFirstResult();
-            } else {
-                chosen = modelNames.get(0);
+                settings.setDbschema(schema);
+                
+                new Ili2pgExportJob(shell, database, null, settings, Ili2pgExportJob.Mode.SCHEMA_IMPORT).schedule();
+            }   
+            return null;
+        } else if (action == Action.IMPORT) {
+            DBSSchema schema = extractSchema(first);
+            if (schema == null) {
+                IWorkbenchWindow window = HandlerUtil.getActiveWorkbenchWindowChecked(event);
+                MessageDialog.openInformation(
+                        window.getShell(),
+                        "",
+                        "Not a PostgreSQL schema."); 
+
+                return null;
             }
-            if (chosen.contains("{")) {
-                chosen = chosen.substring(0, chosen.indexOf("{"));            
+            Log.info("Schema: " + schema);
+
+            List<String> modelNames;
+            try {
+                modelNames = loadModelNames(schema);
+            } catch (Exception e) {
+                MessageDialog.openError(shell, "ili2pg", "Failed to load model names: " + e.getMessage());
+                return null;
             }
-            Log.info("chosen: " + chosen);
-            new Ili2pgExportJob(shell, schema, chosen, settings).schedule();            
-        } else {
-            System.err.println("********************");
+            Log.info("modelNames: " + modelNames);
             
-            Ili2pgExportDialog dlg = new Ili2pgExportDialog(shell, schema.getName(), modelNames);
-            if (dlg.open() != Window.OK) return null;
+            if (modelNames.isEmpty()) {
+                MessageDialog.openInformation(shell, "ili2pg",
+                        "No rows in " + schema.getName() + ".t_ili2db_model (or table missing).");
+                return null;
+            }
             
-            String modelName = dlg.getSelectedModel();
+            Config settings = createConfig();
+
+            Ili2pgImportDialog dlg = new Ili2pgImportDialog(shell, modelNames);
+            if (dlg.open() != Window.OK) {
+                return null;
+            }
+            String model   = dlg.getSelectedModel();
+            String localFile   = dlg.getTransferFilePath();
+            String ilidata = dlg.getExternalTransferRef();
+            boolean noVal  = dlg.isDisableValidation();
+            String ds      = dlg.getDataset();
+            String bs      = dlg.getBaskets();
+            String tp      = dlg.getTopics();
             
+            
+            String modelName = this.sanitizeModelName(dlg.getSelectedModel());
+
             if (dlg.isDisableValidation()) {
                 settings.setValidation(false);
             }
-            
-            System.err.println("***" + dlg.getDatasets());
-            System.err.println("***" + dlg.isDisableValidation());
-            
-            
-            return null;
-        }
-        
+            if (dlg.getDataset() != null) {
+                settings.setDatasetName(dlg.getDataset());
+            }
+            if (dlg.getBaskets() != null) {
+                settings.setBaskets(dlg.getBaskets());
+            }
+            if (dlg.getTopics() != null) {
+                settings.setTopics(dlg.getTopics());
+            }
+            if (localFile != null) {
+                settings.setXtffile(localFile);
+            }
+            if (ilidata != null) {
+                settings.setXtffile(ilidata);
+            }
 
+            new Ili2pgExportJob(shell, schema, modelName, settings, Ili2pgExportJob.Mode.IMPORT).schedule();
+            
+
+
+            
+            
+            
+        } else {
+            // Resolve the schema from the current selection
+            DBSSchema schema = extractSchema(first);
+            if (schema == null) {
+                IWorkbenchWindow window = HandlerUtil.getActiveWorkbenchWindowChecked(event);
+                MessageDialog.openInformation(
+                        window.getShell(),
+                        "",
+                        "Not a PostgreSQL schema."); 
+
+                return null;
+            }
+            Log.info("Schema: " + schema);
+            
+            // Read model names from schema.t_ili2db_model
+            List<String> modelNames;
+            try {
+                modelNames = loadModelNames(schema);
+            } catch (Exception e) {
+                MessageDialog.openError(shell, "ili2pg", "Failed to load model names: " + e.getMessage());
+                return null;
+            }
+            Log.info("modelNames: " + modelNames);
+            
+            if (modelNames.isEmpty()) {
+                MessageDialog.openInformation(shell, "ili2pg",
+                        "No rows in " + schema.getName() + ".t_ili2db_model (or table missing).");
+                return null;
+            }
+            
+            Config settings = createConfig();
+            switch (action) {
+                case EXPORT, VALIDATE: {
+                    String chosenModel = null;
+                    if (modelNames.size() > 1) {
+                        ElementListSelectionDialog dlg = new ElementListSelectionDialog(shell, new LabelProvider());
+                        dlg.setTitle("Select ili2pg model");
+                        dlg.setMessage("Choose a model from schema: " + schema.getName());
+                        dlg.setMultipleSelection(false);
+                        dlg.setElements(modelNames.toArray(new String[0]));
+                        if (dlg.open() != Window.OK) {
+                            return null;
+                        }
+                        chosenModel = (String) dlg.getFirstResult();
+                    } else {
+                        chosenModel = modelNames.get(0);
+                    }
+        
+                    chosenModel = sanitizeModelName(chosenModel);
+                    if (action == Action.EXPORT) {
+                        new Ili2pgExportJob(shell, schema, chosenModel, settings, Ili2pgExportJob.Mode.EXPORT).schedule();
+                    } else {
+                        new Ili2pgExportJob(shell, schema, chosenModel, settings, Ili2pgExportJob.Mode.VALIDATE).schedule();                    
+                    }
+                    break;
+                }
+                case EXPORT_WITH_OPTIONS: {
+                    Ili2pgExportDialog dlg = new Ili2pgExportDialog(shell, schema.getName(), modelNames);
+                    if (dlg.open() != Window.OK) {
+                        return null;
+                    }
+                    
+                    String modelName = this.sanitizeModelName(dlg.getSelectedModel());
+
+                    if (dlg.isDisableValidation()) {
+                        settings.setValidation(false);
+                    }
+                    if (dlg.getDatasets() != null) {
+                        settings.setDatasetName(dlg.getDatasets());
+                    }
+                    if (dlg.getBaskets() != null) {
+                        settings.setBaskets(dlg.getBaskets());
+                    }
+                    if (dlg.getTopics() != null) {
+                        settings.setTopics(dlg.getTopics());
+                    }
+                    new Ili2pgExportJob(shell, schema, modelName, settings, Ili2pgExportJob.Mode.EXPORT).schedule();
+                    break;
+                }
+            }  
+        }
         return null;
     }
     
@@ -138,16 +274,14 @@ public class ExportSchemaHandler extends AbstractHandler {
         return settings;
     }
     
-    private DBSSchema extractSchema(Object element) {
-        // 1) Try direct adaptation (works for many navigator nodes)
-        if (element instanceof IAdaptable) {
-            DBSSchema adapted = ((IAdaptable) element).getAdapter(DBSSchema.class);
-            if (adapted != null) {
-                return adapted;
-            }
+    private String sanitizeModelName(String modelName) {
+        if (modelName.contains("{")) {
+            return modelName.substring(0, modelName.indexOf("{"));            
         }
-
-        // 2) If it's a DBNDatabaseItem, dive into its DBSObject and walk up
+        return modelName;
+    }
+    
+    private DBSSchema extractSchema(Object element) {
         if (element instanceof DBNDatabaseItem) {
             DBSObject obj = ((DBNDatabaseItem) element).getObject();
             for (DBSObject p = obj; p != null; p = p.getParentObject()) {
@@ -156,8 +290,18 @@ public class ExportSchemaHandler extends AbstractHandler {
                 } 
             }
         }
-
-        // Not a schema (e.g., databases without schemas, or a folder node)
+        return null;
+    }
+    
+    private DBSInstance extractDatabase(Object element) {
+        if (element instanceof DBNDatabaseItem) {
+            DBSObject obj = ((DBNDatabaseItem) element).getObject();
+            for (DBSObject p = obj; p != null; p = p.getParentObject()) {
+                if (p instanceof org.jkiss.dbeaver.ext.postgresql.model.PostgreDatabase) {
+                    return (DBSInstance) p;
+                } 
+            }
+        }
         return null;
     }
     
@@ -188,6 +332,5 @@ public class ExportSchemaHandler extends AbstractHandler {
             }
         }
         return new ArrayList<>(uniq);
-    }
- 
+    } 
 }
