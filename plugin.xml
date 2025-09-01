@@ -34,7 +34,7 @@
 <extension point="org.eclipse.ui.handlers">
     <handler
         commandId="ch.so.agi.dbeaver.ili2pg.commands.importSchema"
-        class="ch.so.agi.dbeaver.ili2pg.handlers.ExportSchemaHandler">
+        class="ch.so.agi.dbeaver.ili2pg.handlers.Ili2pgHandler">
       <enabledWhen>
         <and>
           <with variable="selection"><count value="1"/></with>
@@ -51,7 +51,7 @@
 
   <handler
       commandId="ch.so.agi.dbeaver.ili2pg.commands.importData"
-      class="ch.so.agi.dbeaver.ili2pg.handlers.ExportSchemaHandler">
+      class="ch.so.agi.dbeaver.ili2pg.handlers.Ili2pgHandler">
     <enabledWhen>
       <and>
         <with variable="selection"><count value="1"/></with>
@@ -64,7 +64,7 @@
 
   <handler
       commandId="ch.so.agi.dbeaver.ili2pg.commands.exportSchema"
-      class="ch.so.agi.dbeaver.ili2pg.handlers.ExportSchemaHandler">
+      class="ch.so.agi.dbeaver.i.Ili2pgHandlertSchemaHandler">
     <enabledWhen>
       <and>
         <with variable="selection"><count value="1"/></with>
@@ -77,7 +77,7 @@
       
   <handler
       commandId="ch.so.agi.dbeaver.ili2pg.commands.exportSchemaWithOptions"
-      class="ch.so.agi.dbeaver.ili2pg.handlers.ExportSchemaHandler">
+      class="ch.so.agi.dbeaver.ili2pg.handlers.Ili2pgHandler">
     <enabledWhen>
       <and>
         <with variable="selection"><count value="1"/></with>
@@ -89,7 +89,7 @@
   </handler>
 
   <handler commandId="ch.so.agi.dbeaver.ili2pg.commands.validateSchema"
-           class="ch.so.agi.dbeaver.ili2pg.handlers.ExportSchemaHandler">
+           class="ch.so.agi.dbeaver.ili2pg.handlers.Ili2pgHandler">
     <enabledWhen>
       <and>
         <with variable="selection"><count value="1"/></with>
@@ -100,6 +100,18 @@
     </enabledWhen>
   </handler>
 </extension>
+
+<extension point="org.eclipse.ui.preferencePages">
+  <page
+    id="ch.so.agi.dbeaver.ili2pg.prefs"
+    name="ili2pg"
+    class="ch.so.agi.dbeaver.ili2pg.ui.Ili2pgPreferencePage"/>
+</extension>
+
+<extension point="org.eclipse.core.runtime.preferences">
+  <initializer class="ch.so.agi.dbeaver.ili2pg.ui.Ili2pgPreferenceInitializer"/>
+</extension>
+
 
 <extension point="org.eclipse.ui.menus">
   <menuContribution allPopups="false" locationURI="popup:org.eclipse.ui.popup.any?after=navigator_additions">

@@ -4,13 +4,11 @@ import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
-import java.time.LocalDateTime;
 import java.util.Objects;
 
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Status;
-import org.eclipse.core.runtime.SubMonitor;
 import org.eclipse.core.runtime.jobs.Job;
 import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.swt.widgets.Display;
@@ -22,13 +20,8 @@ import org.eclipse.ui.console.MessageConsole;
 import org.eclipse.ui.console.MessageConsoleStream;
 import org.eclipse.ui.progress.IProgressConstants;
 
-import org.jkiss.dbeaver.model.DBPDataSource;
 import org.jkiss.dbeaver.model.DBPDataSourceContainer;
-import org.jkiss.dbeaver.model.DBUtils;
 import org.jkiss.dbeaver.model.connection.DBPConnectionConfiguration;
-import org.jkiss.dbeaver.model.exec.DBCException;
-import org.jkiss.dbeaver.model.exec.jdbc.JDBCSession;
-import org.jkiss.dbeaver.model.runtime.VoidProgressMonitor;
 import org.jkiss.dbeaver.model.struct.DBSInstance;
 import org.jkiss.dbeaver.model.struct.DBSObject;
 import org.jkiss.dbeaver.model.struct.rdb.DBSSchema;
@@ -39,7 +32,7 @@ import ch.ehi.ili2db.base.Ili2dbException;
 import ch.ehi.ili2db.gui.Config;
 import ch.so.agi.dbeaver.ili2pg.log.EclipseConsoleLogListener;
 
-public class Ili2pgExportJob extends Job {
+public class Ili2pgJob extends Job {
     public enum Mode { SCHEMA_IMPORT, IMPORT, EXPORT, VALIDATE }
     
     private static final String PLUGIN_ID = "ch.so.agi.dbeaver.ili2pg";
@@ -47,11 +40,10 @@ public class Ili2pgExportJob extends Job {
     private final Shell parentShell;
     private DBSSchema schema;
     private DBSInstance database; 
-    private final String modelName;
     private final Config settings;
     private final Mode mode; 
 
-    public Ili2pgExportJob(Shell parentShell, DBSObject dbsObject, String modelName, Config settings, Mode mode) {
+    public Ili2pgJob(Shell parentShell, DBSObject dbsObject, Config settings, Mode mode) {
         //super((mode == Mode.EXPORT ? "ili2pg export: " : "ili2pg validate: ") + schema.getName());
         super("ili2pg job");
         this.parentShell = parentShell;
@@ -60,7 +52,6 @@ public class Ili2pgExportJob extends Job {
         } else {
             this.database = (DBSInstance) dbsObject;
         }
-        this.modelName = modelName;
         this.settings = settings;
         this.mode = mode;
         setUser(true); // show progress to the user
@@ -94,7 +85,6 @@ public class Ili2pgExportJob extends Job {
                     connection.setAutoCommit(false);
 
                     settings.setJdbcConnection(connection);
-                    settings.setModels(modelName);
                     settings.setDburl(jdbcUrl);
                     settings.setDbport(hostPort);
                     settings.setDbusr(user);
@@ -134,7 +124,6 @@ public class Ili2pgExportJob extends Job {
                     connection.setAutoCommit(false);
 
                     settings.setJdbcConnection(connection);
-                    settings.setModels(modelName);
                     settings.setDbschema(schemaName);
                     settings.setDburl(jdbcUrl);
                     settings.setDbport(hostPort);
@@ -174,7 +163,6 @@ public class Ili2pgExportJob extends Job {
                     connection.setAutoCommit(false);
 
                     settings.setJdbcConnection(connection);
-                    settings.setModels(modelName);
                     settings.setDbschema(schemaName);
                     settings.setDburl(jdbcUrl);
                     settings.setDbport(hostPort);

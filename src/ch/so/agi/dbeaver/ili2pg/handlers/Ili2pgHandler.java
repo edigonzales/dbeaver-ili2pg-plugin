@@ -9,7 +9,7 @@ import java.util.Set;
 import org.eclipse.core.commands.AbstractHandler;
 import org.eclipse.core.commands.ExecutionEvent;
 import org.eclipse.core.commands.ExecutionException;
-import org.eclipse.core.runtime.IAdaptable;
+import org.eclipse.core.runtime.preferences.InstanceScope;
 import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.jface.viewers.ISelection;
 import org.eclipse.jface.viewers.IStructuredSelection;
@@ -19,6 +19,7 @@ import org.eclipse.swt.widgets.Shell;
 import org.eclipse.ui.IWorkbenchWindow;
 import org.eclipse.ui.dialogs.ElementListSelectionDialog;
 import org.eclipse.ui.handlers.HandlerUtil;
+import org.eclipse.ui.preferences.ScopedPreferenceStore;
 import org.jkiss.dbeaver.model.DBPDataSource;
 import org.jkiss.dbeaver.model.DBUtils;
 import org.jkiss.dbeaver.model.exec.DBCException;
@@ -36,11 +37,13 @@ import org.jkiss.dbeaver.model.struct.rdb.DBSSchema;
 import ch.so.agi.dbeaver.ili2pg.log.Log;
 import ch.so.agi.dbeaver.ili2pg.ui.Ili2pgExportDialog;
 import ch.so.agi.dbeaver.ili2pg.ui.Ili2pgImportSchemaDialog;
+import ch.so.agi.dbeaver.ili2pg.ui.Ili2pgPreferencePage;
 import ch.so.agi.dbeaver.ili2pg.ui.Ili2pgImportDialog;
 import ch.ehi.ili2db.gui.Config;
-import ch.so.agi.dbeaver.ili2pg.jobs.Ili2pgExportJob;
+import ch.interlis.ili2c.Ili2cSettings;
+import ch.so.agi.dbeaver.ili2pg.jobs.Ili2pgJob;
 
-public class ExportSchemaHandler extends AbstractHandler {
+public class Ili2pgHandler extends AbstractHandler {
     private static final String CMD_SCHEMA_IMPORT = "ch.so.agi.dbeaver.ili2pg.commands.importSchema";
     private static final String CMD_DATA_IMPORT = "ch.so.agi.dbeaver.ili2pg.commands.importData";
     private static final String CMD_EXPORT = "ch.so.agi.dbeaver.ili2pg.commands.exportSchema";
@@ -99,7 +102,6 @@ public class ExportSchemaHandler extends AbstractHandler {
                 String ini = dlg.getIniPath();
                 String ilidata = dlg.getIliDataRef();
                 String schema = dlg.getTargetSchema();
-                // schedule your import job with these values
                 
                 Config settings = createConfig();
                 if (ini != null) {
@@ -110,7 +112,7 @@ public class ExportSchemaHandler extends AbstractHandler {
                 }
                 settings.setDbschema(schema);
                 
-                new Ili2pgExportJob(shell, database, null, settings, Ili2pgExportJob.Mode.SCHEMA_IMPORT).schedule();
+                new Ili2pgJob(shell, database, settings, Ili2pgJob.Mode.SCHEMA_IMPORT).schedule();
             }   
             return null;
         } else if (action == Action.IMPORT) {
@@ -147,17 +149,10 @@ public class ExportSchemaHandler extends AbstractHandler {
             if (dlg.open() != Window.OK) {
                 return null;
             }
-            String model   = dlg.getSelectedModel();
-            String localFile   = dlg.getTransferFilePath();
-            String ilidata = dlg.getExternalTransferRef();
-            boolean noVal  = dlg.isDisableValidation();
-            String ds      = dlg.getDataset();
-            String bs      = dlg.getBaskets();
-            String tp      = dlg.getTopics();
-            
-            
-            String modelName = this.sanitizeModelName(dlg.getSelectedModel());
 
+            String modelName = this.sanitizeModelName(dlg.getSelectedModel());
+            settings.setModels(modelName);
+            
             if (dlg.isDisableValidation()) {
                 settings.setValidation(false);
             }
@@ -170,20 +165,14 @@ public class ExportSchemaHandler extends AbstractHandler {
             if (dlg.getTopics() != null) {
                 settings.setTopics(dlg.getTopics());
             }
-            if (localFile != null) {
-                settings.setXtffile(localFile);
+            if (dlg.getTransferFilePath() != null) {
+                settings.setXtffile(dlg.getTransferFilePath());
             }
-            if (ilidata != null) {
-                settings.setXtffile(ilidata);
+            if (dlg.getExternalTransferRef() != null) {
+                settings.setXtffile(dlg.getExternalTransferRef());
             }
 
-            new Ili2pgExportJob(shell, schema, modelName, settings, Ili2pgExportJob.Mode.IMPORT).schedule();
-            
-
-
-            
-            
-            
+            new Ili2pgJob(shell, schema, settings, Ili2pgJob.Mode.IMPORT).schedule();
         } else {
             // Resolve the schema from the current selection
             DBSSchema schema = extractSchema(first);
@@ -233,10 +222,11 @@ public class ExportSchemaHandler extends AbstractHandler {
                     }
         
                     chosenModel = sanitizeModelName(chosenModel);
+                    settings.setModels(chosenModel);
                     if (action == Action.EXPORT) {
-                        new Ili2pgExportJob(shell, schema, chosenModel, settings, Ili2pgExportJob.Mode.EXPORT).schedule();
+                        new Ili2pgJob(shell, schema, settings, Ili2pgJob.Mode.EXPORT).schedule();
                     } else {
-                        new Ili2pgExportJob(shell, schema, chosenModel, settings, Ili2pgExportJob.Mode.VALIDATE).schedule();                    
+                        new Ili2pgJob(shell, schema, settings, Ili2pgJob.Mode.VALIDATE).schedule();                    
                     }
                     break;
                 }
@@ -247,7 +237,8 @@ public class ExportSchemaHandler extends AbstractHandler {
                     }
                     
                     String modelName = this.sanitizeModelName(dlg.getSelectedModel());
-
+                    settings.setModels(modelName);
+                    
                     if (dlg.isDisableValidation()) {
                         settings.setValidation(false);
                     }
@@ -260,7 +251,7 @@ public class ExportSchemaHandler extends AbstractHandler {
                     if (dlg.getTopics() != null) {
                         settings.setTopics(dlg.getTopics());
                     }
-                    new Ili2pgExportJob(shell, schema, modelName, settings, Ili2pgExportJob.Mode.EXPORT).schedule();
+                    new Ili2pgJob(shell, schema, settings, Ili2pgJob.Mode.EXPORT).schedule();
                     break;
                 }
             }  
@@ -271,6 +262,15 @@ public class ExportSchemaHandler extends AbstractHandler {
     private Config createConfig() {
         Config settings = new Config();
         new ch.ehi.ili2pg.PgMain().initConfig(settings);
+        
+        ScopedPreferenceStore store = new ScopedPreferenceStore(InstanceScope.INSTANCE, Ili2pgPreferencePage.PLUGIN_ID);
+        String ilidir = store.getString(Ili2pgPreferencePage.P_ILIDIR);
+        if (!ilidir.isBlank()) {
+            settings.setModeldir(ilidir);
+        } else {
+            settings.setModeldir(Ili2cSettings.DEFAULT_ILIDIRS);
+        }
+        
         return settings;
     }
     
