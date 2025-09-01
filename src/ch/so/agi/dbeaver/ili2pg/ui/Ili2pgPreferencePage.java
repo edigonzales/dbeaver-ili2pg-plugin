@@ -9,8 +9,8 @@ import org.eclipse.core.runtime.preferences.InstanceScope;
 public class Ili2pgPreferencePage extends FieldEditorPreferencePage implements IWorkbenchPreferencePage {
 
     public static final String PLUGIN_ID = "ch.so.agi.dbeaver.ili2pg";
-    public static final String P_DISABLE_VALIDATION = "disableValidationDefault";
-    public static final String P_DEFAULT_DATASET = "defaultDataset";
+//    public static final String P_DISABLE_VALIDATION = "disableValidationDefault";
+//    public static final String P_DEFAULT_DATASET = "defaultDataset";
     public static final String P_ILIDIR = "ilidir";
 
     public Ili2pgPreferencePage() {
@@ -21,8 +21,8 @@ public class Ili2pgPreferencePage extends FieldEditorPreferencePage implements I
 
     @Override
     public void createFieldEditors() {
-        addField(new BooleanFieldEditor(P_DISABLE_VALIDATION, "Disable validation by default", getFieldEditorParent()));
-        addField(new StringFieldEditor(P_DEFAULT_DATASET, "Default Dataset:", getFieldEditorParent()));
+//        addField(new BooleanFieldEditor(P_DISABLE_VALIDATION, "Disable validation by default", getFieldEditorParent()));
+//        addField(new StringFieldEditor(P_DEFAULT_DATASET, "Default Dataset:", getFieldEditorParent()));
         addField(new StringFieldEditor(P_ILIDIR, "Model repositories:", getFieldEditorParent()));
     }
 
