@@ -2,6 +2,7 @@ package ch.so.agi.dbeaver.ili2pg.jobs;
 
 import java.nio.file.Paths;
 import java.sql.Connection;
+import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.Objects;
@@ -83,31 +84,32 @@ public class Ili2pgExportJob extends Job {
             if (mode == Mode.SCHEMA_IMPORT) {
                 DBPDataSourceContainer container = database.getDataSource().getContainer();
                 DBPConnectionConfiguration cc = container.getActualConnectionConfiguration();
-                
+
                 String jdbcUrl = cc.getUrl();
                 String hostPort = Objects.toString(cc.getHostPort(), "");
-                String user     = cc.getUserName();
+                String user = cc.getUserName() != null ? cc.getUserName() : "";
+                String pwd = cc.getUserPassword() != null ? cc.getUserPassword() : "";
 
-                DBPDataSource ds = container.getDataSource();
-                try (JDBCSession session = DBUtils.openMetaSession(new VoidProgressMonitor(), ds, this.getName())) {
-                    Connection conn = session.getOriginal(); // <-- do not close
-                    settings.setJdbcConnection(conn);
+                try (Connection connection = DriverManager.getConnection(jdbcUrl, user, cc.getUserPassword())) {
+                    connection.setAutoCommit(false);
 
+                    settings.setJdbcConnection(connection);
+                    settings.setModels(modelName);
                     settings.setDburl(jdbcUrl);
                     settings.setDbport(hostPort);
-                    settings.setDbusr(user != null ? user : "");
-                    settings.setDbpwd(cc.getUserPassword() != null ? cc.getUserPassword() : "");
+                    settings.setDbusr(user);
+                    settings.setDbpwd(pwd);
 
                     String userHome = System.getProperty("user.home");
                     String logPath  = Paths.get(userHome, settings.getDbschema() + ".log").toAbsolutePath().toString();
                     listener.setLogfileName(logPath);
-                    settings.setLogfile(logPath);                    
+                    settings.setLogfile(logPath);     
 
                     settings.setFunction(Config.FC_SCHEMAIMPORT);
                     
                     Ili2db.readSettingsFromDb(settings);
                     Ili2db.run(settings, null);
-                } catch (DBCException | SQLException e) {
+                } catch (SQLException e) {
                     err.println("! JDBC/DB error: " + e.getMessage());
                     return Status.error(e.getMessage(), e);
                 } catch (Ili2dbException e) {
@@ -123,43 +125,32 @@ public class Ili2pgExportJob extends Job {
 
                 String jdbcUrl = cc.getUrl();
                 String hostPort = Objects.toString(cc.getHostPort(), "");
-                String user     = cc.getUserName();
+                String user = cc.getUserName() != null ? cc.getUserName() : "";
+                String pwd = cc.getUserPassword() != null ? cc.getUserPassword() : "";
 
-                DBPDataSource ds = schema.getDataSource();
+                ClassLoader myBundleClassLoader = getClass().getClassLoader();
+                Class.forName("org.postgresql.Driver", true, myBundleClassLoader);
+                try (Connection connection = DriverManager.getConnection(jdbcUrl, user, cc.getUserPassword())) {
+                    connection.setAutoCommit(false);
 
-
-                try (JDBCSession session = DBUtils.openMetaSession(new VoidProgressMonitor(), ds, this.getName())) {
-                    Connection conn = session.getOriginal(); // <-- do not close
-
-                    //Config settings = createConfig();
-                    settings.setJdbcConnection(conn);
-
+                    settings.setJdbcConnection(connection);
                     settings.setModels(modelName);
                     settings.setDbschema(schemaName);
-
                     settings.setDburl(jdbcUrl);
                     settings.setDbport(hostPort);
-                    settings.setDbusr(user != null ? user : "");
-                    settings.setDbpwd(cc.getUserPassword() != null ? cc.getUserPassword() : "");
+                    settings.setDbusr(user);
+                    settings.setDbpwd(pwd);
 
                     String userHome = System.getProperty("user.home");
                     String logPath  = Paths.get(userHome, schemaName + ".log").toAbsolutePath().toString();
                     listener.setLogfileName(logPath);
                     settings.setLogfile(logPath);     
-                    settings.setItfTransferfile(false);
-                    
-                    // TODO / FIXME
-                    // - vielleicht srscode?
-                    // - vielleicht t-ili_tid Zeugs
-                    // - genau schauen bei AbtractMain 
-                    // - versuchen EhiLogger trace (suchen in Github bei Claude)
 
                     settings.setFunction(Config.FC_IMPORT);
-                    
                     Ili2db.readSettingsFromDb(settings);
                     Ili2db.run(settings, null);
-                } catch (DBCException | SQLException e) {
-                    err.println("! JDBC/DB error: " + e.getMessage());
+                } catch (SQLException e) {
+                    err.println("JDBC/DB error: " + e.getMessage());
                     return Status.error(e.getMessage(), e);
                 } catch (Ili2dbException e) {
                     err.println("Error: " + e.getMessage());
@@ -167,7 +158,6 @@ public class Ili2pgExportJob extends Job {
                 } finally {
                     EhiLogger.getInstance().removeListener(listener);
                 }
-
             } else {
                 final String schemaName = schema.getName();
                 DBPDataSourceContainer c = schema.getDataSource().getContainer();
@@ -175,24 +165,21 @@ public class Ili2pgExportJob extends Job {
 
                 String jdbcUrl = cc.getUrl();
                 String hostPort = Objects.toString(cc.getHostPort(), "");
-                String user     = cc.getUserName();
+                String user = cc.getUserName() != null ? cc.getUserName() : "";
+                String pwd = cc.getUserPassword() != null ? cc.getUserPassword() : "";
 
-                DBPDataSource ds = schema.getDataSource();
+                ClassLoader myBundleClassLoader = getClass().getClassLoader();
+                Class.forName("org.postgresql.Driver", true, myBundleClassLoader);
+                try (Connection connection = DriverManager.getConnection(jdbcUrl, user, cc.getUserPassword())) {
+                    connection.setAutoCommit(false);
 
-
-                try (JDBCSession session = DBUtils.openMetaSession(new VoidProgressMonitor(), ds, this.getName())) {
-                    Connection conn = session.getOriginal(); // <-- do not close
-
-                    //Config settings = createConfig();
-                    settings.setJdbcConnection(conn);
-
+                    settings.setJdbcConnection(connection);
                     settings.setModels(modelName);
                     settings.setDbschema(schemaName);
-
                     settings.setDburl(jdbcUrl);
                     settings.setDbport(hostPort);
-                    settings.setDbusr(user != null ? user : "");
-                    settings.setDbpwd(cc.getUserPassword() != null ? cc.getUserPassword() : "");
+                    settings.setDbusr(user);
+                    settings.setDbpwd(pwd);
 
                     String userHome = System.getProperty("user.home");
                     String logPath  = Paths.get(userHome, schemaName + ".log").toAbsolutePath().toString();
@@ -201,7 +188,6 @@ public class Ili2pgExportJob extends Job {
 
                     if (mode == Mode.EXPORT) {
                         settings.setFunction(Config.FC_EXPORT);
-
                         String xtfPath  = Paths.get(userHome, schemaName + ".xtf").toAbsolutePath().toString();
                         settings.setXtffile(xtfPath);
                     } else {
@@ -210,7 +196,7 @@ public class Ili2pgExportJob extends Job {
                     
                     Ili2db.readSettingsFromDb(settings);
                     Ili2db.run(settings, null);
-                } catch (DBCException | SQLException e) {
+                } catch (SQLException e) {
                     err.println("! JDBC/DB error: " + e.getMessage());
                     return Status.error(e.getMessage(), e);
                 } catch (Ili2dbException e) {
@@ -221,7 +207,7 @@ public class Ili2pgExportJob extends Job {
                 }
             }
        
-            doneAsync("ili2pg job finished", "todo: sinnvolle Nachricht");
+            doneAsync("ili2pg job finished", "ili2pg job finished");
             return Status.OK_STATUS;
         } catch (Exception e) {
             return error("ili2pg job failed: " + e.getMessage(), e);
