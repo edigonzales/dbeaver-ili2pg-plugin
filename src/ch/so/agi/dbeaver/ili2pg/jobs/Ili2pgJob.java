@@ -82,7 +82,7 @@ public class Ili2pgJob extends Job {
                 String pwd = cc.getUserPassword() != null ? cc.getUserPassword() : "";
 
                 try (Connection connection = DriverManager.getConnection(jdbcUrl, user, cc.getUserPassword())) {
-                    connection.setAutoCommit(false);
+//                    connection.setAutoCommit(false);
 
                     settings.setJdbcConnection(connection);
                     settings.setDburl(jdbcUrl);
@@ -121,7 +121,7 @@ public class Ili2pgJob extends Job {
                 ClassLoader myBundleClassLoader = getClass().getClassLoader();
                 Class.forName("org.postgresql.Driver", true, myBundleClassLoader);
                 try (Connection connection = DriverManager.getConnection(jdbcUrl, user, cc.getUserPassword())) {
-                    connection.setAutoCommit(false);
+//                    connection.setAutoCommit(false);
 
                     settings.setJdbcConnection(connection);
                     settings.setDbschema(schemaName);
@@ -160,7 +160,7 @@ public class Ili2pgJob extends Job {
                 ClassLoader myBundleClassLoader = getClass().getClassLoader();
                 Class.forName("org.postgresql.Driver", true, myBundleClassLoader);
                 try (Connection connection = DriverManager.getConnection(jdbcUrl, user, cc.getUserPassword())) {
-                    connection.setAutoCommit(false);
+//                    connection.setAutoCommit(false);
 
                     settings.setJdbcConnection(connection);
                     settings.setDbschema(schemaName);
