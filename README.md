@@ -6,6 +6,12 @@
 
 ## develop
 
+Das Projekt ist ein Eclipse-Projekt, d.h. kein Maven- oder Gradle-Projekt (auch wenn Gradle später für eine Aufgabe verwendet wird). Zum Entwicklen wird am besten "Eclipse IDE for RCP and RAP Developers" verwendet. 
+
+Damit man für die Codeänderungen möglichst rasch ein Feedback bekommt, kann man via Eclipse eine dbeaver-Instanz starten und das Plugin dorthin deployen. Dafür müssen einige Einstellungen in Eclipse vorgenommen werden. Als erstes muss die Target Platform definiert werden `Settings` - `Plug-in Development` - `Target Platform` - `Add` ... Hier muss das `plugin`-Directory der dbeaver-Installation ausgewählt werden.
+
+Ausführen muss man das Plugin als `Eclipse Application`. Für den Workspace wählt man den Pfad zum Workspace dbeaver-Installation, z.B. unter macOS: `/Users/stefan/Library/DBeaverData/workspace6`. Dies ist optional aber notwendig, wenn man nicht mit einem leeren Workspace, d.h. ohne vordefinierte Datenbanken in dbeaver starten will.
+
 Workspace:
 ```
 /Users/stefan/Library/DBeaverData/workspace6
