@@ -1,0 +1,46 @@
+localhost, 127.0.0.1:80 {
+    root * /srv/site
+
+    # Static files + directory listing
+    file_server browse
+
+    # Access logs (site-scoped)
+    log {
+        output stdout
+        format console
+    }
+
+    # Security headers
+    header {
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "strict-origin-when-cross-origin"
+    }
+
+    # Light cache for the root path
+    @html path /
+    header @html Cache-Control "public, max-age=300"
+}
+
+dbeaver.sogeo.services {
+    tls stefan.ziegler.de@gmail.com 
+
+    root * /srv/site
+
+    file_server browse
+
+    log {
+        output stdout
+        format console
+    }
+
+    header {
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "strict-origin-when-cross-origin"
+    }
+
+    @html path /
+    header @html Cache-Control "public, max-age=300"
+}
+

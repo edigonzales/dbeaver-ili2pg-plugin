@@ -3,7 +3,7 @@ Bundle-ManifestVersion: 2
 Bundle-Name: dbeaver-Ili2pg-plugin
 Bundle-SymbolicName: ch.so.agi.dbeaver.ili2pg;singleton:=true
 Bundle-Version: 1.0.0.qualifier
-Bundle-Vendor: YOURCOMPANY
+Bundle-Vendor: Amt für Geoinformation (Kanton Solothurn)
 Require-Bundle: 
  org.eclipse.core.runtime,
  org.eclipse.ui, 
