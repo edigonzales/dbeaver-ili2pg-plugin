@@ -19,6 +19,8 @@ Für die Update Site wird ein weiteres Eclipse-Projekt benötigt, das Feature-Pr
 
 Das Feature-Projekt muss man exportieren: `Export` - `Deployable Features` - Directory wählen (siehe unten die Eclipse-Befehle). Anschliessend müssen die erstellten Dateien mit weiteren Metainformationen angereichert werden. Dazu kann man folgende Befehle mit Eclipse auf der Konsole ausführen. Die Pfade sind im Prinzip willkürlich.
 
+Achtung: Die Update Site hat nicht funktioniert, wenn sie eine Domain ist. Es wird ein Pfad (Unterverzeichnis) benötigt.
+
 
 Eclipse 2025-6:
 ```
