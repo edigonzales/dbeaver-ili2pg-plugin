@@ -1,8 +1,7 @@
 # dbeaver-ili2pg-plugin
 
 ## todo
-- Falls error -> gesamtes Logfile im show details
-
+- Falls error -> gesamtes Logfile in "show details"
 
 ## develop
 
@@ -10,42 +9,18 @@ Das Projekt ist ein Eclipse-Projekt, d.h. kein Maven- oder Gradle-Projekt (auch 
 
 Damit man für die Codeänderungen möglichst rasch ein Feedback bekommt, kann man via Eclipse eine dbeaver-Instanz starten und das Plugin dorthin deployen. Dafür müssen einige Einstellungen in Eclipse vorgenommen werden. Als erstes muss die Target Platform definiert werden `Settings` - `Plug-in Development` - `Target Platform` - `Add` ... Hier muss das `plugin`-Directory der dbeaver-Installation ausgewählt werden. Die neu erstellte Target Platform muss anschliessend explizit ausgewählt werden.
 
-Ausführen muss man das Plugin als `Eclipse Application`. Für den Workspace wählt man den Pfad zum Workspace dbeaver-Installation, z.B. unter macOS: `/Users/stefan/Library/DBeaverData/workspace6`. Dies ist optional aber notwendig, wenn man nicht mit einem leeren Workspace, d.h. ohne vordefinierte Datenbanken in dbeaver starten will.
+Ausführen muss man das Plugin-Projekt als `Eclipse Application`. Für den Workspace wählt man den Pfad zum Workspace dbeaver-Installation, z.B. unter macOS: `/Users/stefan/Library/DBeaverData/workspace6`. Dies ist optional aber notwendig, wenn man nicht mit einem leeren Workspace, d.h. ohne vordefinierte Datenbanken in dbeaver starten will. Unter `Run an Application` ist `org.jkiss.dbeaver.ui.app.standalone.standalone` auszuwählen. Jetzt wird bei jedem Ausführen des Plugins dbeaver gestartet und das Plugin deployed.
 
-Workspace:
-```
-/Users/stefan/Library/DBeaverData/workspace6
-```
+Benötigt das Plugin 3rd party libraries, muss (resp. kann neben anderen Varianten) man diese in das OSGi-Bundle packen. Im vorliegenden Fall übernimmt ein Gradle-Task `downloadAndExtractIli2pg` diese Aufgabe. Er lädt die die gezippte ili2pg-Datei herunter, entzippt sie und kopiert die Libraries in ein lib-Verzeichnis. Den Konsolenoutput des Tasks kann man auch für die MANIFEST.MF-Datei und für build.properties verwenden. Beiden müssen die Libraries bekannt gemacht werden. Falls notwendig: in Eclipse den Classpath updaten `Plug-in Tools` - `Update Classpath`.
 
-Run as application:
-```
-org.jkiss.dbeaver.ui.app.standalone.standalone
-```
+## releasing / update site
 
-Target Platform (vorgängig definieren):
+Für die Update Site wird ein weiteres Eclipse-Projekt benötigt, das Feature-Projekt https://github.com/edigonzales/dbeaver-ilitools-feature. Ein Feature könnte mehrere Plugins haben (soweit ich es verstanden habe). Im Feature-Projekt muss man das dbeaver-Plugin hinzufügen. Sinnvollerweise erhalten beide Projekte die gleiche Versionsnummer. Jeder Release sollte eine neue Versionsnummer erhalten.
 
-- Settings - Plug-in Development - Target Platform - Add ...
-- plugin-Directory von dbeaver auswählen
+Das Feature-Projekt muss man exportieren: `Export` - `Deployable Features` - Directory wählen (siehe unten die Eclipse-Befehle). Anschliessend müssen die erstellten Dateien mit weiteren Metainformationen angereichert werden. Dazu kann man folgende Befehle mit Eclipse auf der Konsole ausführen. Die Pfade sind im Prinzip willkürlich.
 
-Third party libs:
 
-- Mit build.gradle herunterladen
-- Konsolenoutput verwenden für MANIFEST.MF und build.properties
-- Plug-in Tools - Update Classpath...
-
-## update site
-
-Leider noch manuell:
-
-1. Feature-Projekt: Export -> Deployable Features -> Directory wählen 
-2. Plugin-Projekt: Export -> Deployable plug-ins and fragments -> Directory wählen
-
-Frage: Ist (2) überhaupt notwendig? (1) scheint auch gleich Plugin zu exportieren.
-
-Beide sollten die gleiche Versionsnummer aufweisen.
-
-FIXME:
-
+Eclipse 2025-6:
 ```
 /Users/stefan/apps/eclipse/rcp-2025-06/Eclipse.app/Contents/MacOS/eclipse \
   -nosplash -consolelog \
@@ -55,8 +30,10 @@ FIXME:
   -source "/Users/stefan/sources/dbeaver-ili2pg-plugin/build/update-input" \
   -compress \
   -publishArtifacts
+```
 
-
+(Achtung: falscher categoryDefinition-Pfad. Ist Zufall, dass es funktioniert)
+```
 /Users/stefan/apps/eclipse/rcp-2025-06/Eclipse.app/Contents/MacOS/eclipse \
   -nosplash -consolelog \
   -application org.eclipse.equinox.p2.publisher.CategoryPublisher \
@@ -65,6 +42,7 @@ FIXME:
   -categoryQualifier "interlis"
 ```
 
+Eclipse 2025-9:
 ```
 /Users/stefan/apps/eclipse/rcp-2025-09/Eclipse.app/Contents/MacOS/eclipse \
   -nosplash -consolelog \
@@ -74,8 +52,9 @@ FIXME:
   -source "/Users/stefan/sources/dbeaver-ili2pg-plugin/build/update-input" \
   -compress \
   -publishArtifacts
+```
 
-
+```
 /Users/stefan/apps/eclipse/rcp-2025-09/Eclipse.app/Contents/MacOS/eclipse \
   -nosplash -consolelog \
   -application org.eclipse.equinox.p2.publisher.CategoryPublisher \
