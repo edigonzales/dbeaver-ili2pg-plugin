@@ -12,6 +12,7 @@ public class Ili2pgPreferencePage extends FieldEditorPreferencePage implements I
 //    public static final String P_DISABLE_VALIDATION = "disableValidationDefault";
 //    public static final String P_DEFAULT_DATASET = "defaultDataset";
     public static final String P_ILIDIR = "ilidir";
+    public static final String P_EXPORT_DIR = "exportDir";
 
     public Ili2pgPreferencePage() {
         super(GRID);
@@ -24,6 +25,7 @@ public class Ili2pgPreferencePage extends FieldEditorPreferencePage implements I
 //        addField(new BooleanFieldEditor(P_DISABLE_VALIDATION, "Disable validation by default", getFieldEditorParent()));
 //        addField(new StringFieldEditor(P_DEFAULT_DATASET, "Default Dataset:", getFieldEditorParent()));
         addField(new StringFieldEditor(P_ILIDIR, "Model repositories:", getFieldEditorParent()));
+        addField(new DirectoryFieldEditor(P_EXPORT_DIR, "Export directory:", getFieldEditorParent()));
     }
 
     @Override

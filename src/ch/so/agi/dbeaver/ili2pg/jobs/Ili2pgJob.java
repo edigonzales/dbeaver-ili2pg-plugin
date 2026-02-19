@@ -19,6 +19,8 @@ import org.eclipse.ui.console.IConsoleManager;
 import org.eclipse.ui.console.MessageConsole;
 import org.eclipse.ui.console.MessageConsoleStream;
 import org.eclipse.ui.progress.IProgressConstants;
+import org.eclipse.core.runtime.preferences.InstanceScope;
+import org.eclipse.ui.preferences.ScopedPreferenceStore;
 
 import org.jkiss.dbeaver.model.DBPDataSourceContainer;
 import org.jkiss.dbeaver.model.connection.DBPConnectionConfiguration;
@@ -31,6 +33,7 @@ import ch.ehi.ili2db.base.Ili2db;
 import ch.ehi.ili2db.base.Ili2dbException;
 import ch.ehi.ili2db.gui.Config;
 import ch.so.agi.dbeaver.ili2pg.log.EclipseConsoleLogListener;
+import ch.so.agi.dbeaver.ili2pg.ui.Ili2pgPreferencePage;
 
 public class Ili2pgJob extends Job {
     public enum Mode { SCHEMA_IMPORT, IMPORT, EXPORT, VALIDATE }
@@ -176,10 +179,15 @@ public class Ili2pgJob extends Job {
 
                     if (mode == Mode.EXPORT) {
                         settings.setFunction(Config.FC_EXPORT);
-                        String xtfPath  = Paths.get(userHome, schemaName + ".xtf").toAbsolutePath().toString();
+                        ScopedPreferenceStore store = new ScopedPreferenceStore(InstanceScope.INSTANCE, Ili2pgPreferencePage.PLUGIN_ID);
+                        String exportDir = store.getString(Ili2pgPreferencePage.P_EXPORT_DIR);
+                        if (exportDir == null || exportDir.isBlank()) {
+                            exportDir = userHome;
+                        }
+                        String xtfPath  = Paths.get(exportDir, schemaName + ".xtf").toAbsolutePath().toString();
                         settings.setXtffile(xtfPath);
                     } else {
-                        settings.setFunction(Config.FC_VALIDATE);                    
+                        settings.setFunction(Config.FC_VALIDATE);
                     }
                     
                     Ili2db.readSettingsFromDb(settings);

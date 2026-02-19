@@ -12,5 +12,6 @@ public class Ili2pgPreferenceInitializer extends AbstractPreferenceInitializer {
 //        d.putBoolean(Ili2pgPreferencePage.P_DISABLE_VALIDATION, false);
 //        d.put(Ili2pgPreferencePage.P_DEFAULT_DATASET, "");
         d.put(Ili2pgPreferencePage.P_ILIDIR, "%ILI_DIR;http://models.interlis.ch/;%JAR_DIR");
+        d.put(Ili2pgPreferencePage.P_EXPORT_DIR, "");
     }
 }
