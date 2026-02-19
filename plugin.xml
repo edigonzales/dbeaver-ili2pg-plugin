@@ -104,8 +104,9 @@
 <extension point="org.eclipse.ui.preferencePages">
   <page
     id="ch.so.agi.dbeaver.ili2pg.prefs"
-    name="ili2pg"
-    class="ch.so.agi.dbeaver.ili2pg.ui.Ili2pgPreferencePage"/>
+    name="ili2pg Settings"
+    class="ch.so.agi.dbeaver.ili2pg.ui.Ili2pgPreferencePage"
+    category="org.eclipse.ui.preferencePages.Workbench"/>
 </extension>
 
 <extension point="org.eclipse.core.runtime.preferences">
