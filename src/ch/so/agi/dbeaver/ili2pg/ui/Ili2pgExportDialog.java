@@ -9,6 +9,8 @@ import org.eclipse.swt.SWT;
 import org.eclipse.swt.widgets.*;
 import org.eclipse.swt.events.*;
 import org.eclipse.swt.layout.GridData;
+import org.eclipse.core.runtime.preferences.InstanceScope;
+import org.eclipse.ui.preferences.ScopedPreferenceStore;
 
 import java.util.List;
 
@@ -27,7 +29,7 @@ public class Ili2pgExportDialog extends TitleAreaDialog {
     private Text datasetsText;
     private Text basketsText;
     private Text topicsText;
-    private Text outputText;
+    private Text exportDirText;
 
     private String selectedModel;        // model in schema
     private String selectedExportModel;  // export model (may equal selectedModel)
@@ -36,7 +38,7 @@ public class Ili2pgExportDialog extends TitleAreaDialog {
     private String datasets;
     private String baskets;
     private String topics;
-    private String outputPath;
+    private String exportDir;
 
     public Ili2pgExportDialog(Shell parentShell, String schemaName, List<String> modelNames) {
         super(parentShell);
@@ -118,23 +120,36 @@ public class Ili2pgExportDialog extends TitleAreaDialog {
         topicsText.setMessage("e.g. Model.TopicA;Model.TopicB");
         GridDataFactory.fillDefaults().grab(true, false).span(2, 1).applyTo(topicsText);
 
-        // Output path row
-//        new Label(container, SWT.NONE).setText("Output file:");
-//        outputText = new Text(container, SWT.BORDER);
-//        GridDataFactory.fillDefaults().grab(true, false).applyTo(outputText);
-//        outputText.addModifyListener(e -> validate());
-//
-//        Button browse = new Button(container, SWT.PUSH);
-//        browse.setText("Browse…");
-//        browse.addSelectionListener(new SelectionAdapter() {
-//            @Override public void widgetSelected(SelectionEvent e) {
-//                FileDialog fd = new FileDialog(getShell(), SWT.SAVE);
-//                fd.setText("Choose export file");
-//                fd.setFilterExtensions(new String[] { "*.xtf", "*.*" });
-//                String sel = fd.open();
-//                if (sel != null) outputText.setText(sel);
-//            }
-//        });
+        // Export directory row
+        new Label(container, SWT.NONE).setText("Export directory:");
+        exportDirText = new Text(container, SWT.BORDER);
+        GridDataFactory.fillDefaults().grab(true, false).applyTo(exportDirText);
+        exportDirText.addModifyListener(e -> validate());
+
+        Button browseBtn = new Button(container, SWT.PUSH);
+        browseBtn.setText("Browse...");
+        browseBtn.addSelectionListener(new SelectionAdapter() {
+            @Override
+            public void widgetSelected(SelectionEvent e) {
+                DirectoryDialog dd = new DirectoryDialog(getShell());
+                dd.setText("Choose export directory");
+                String currentDir = exportDirText.getText().trim();
+                if (!currentDir.isEmpty()) {
+                    dd.setFilterPath(currentDir);
+                }
+                String selected = dd.open();
+                if (selected != null) {
+                    exportDirText.setText(selected);
+                }
+            }
+        });
+
+        // Load saved export directory from preferences
+        ScopedPreferenceStore store = new ScopedPreferenceStore(InstanceScope.INSTANCE, Ili2pgPreferencePage.PLUGIN_ID);
+        String savedExportDir = store.getString(Ili2pgPreferencePage.P_EXPORT_DIR);
+        if (savedExportDir != null && !savedExportDir.isBlank()) {
+            exportDirText.setText(savedExportDir);
+        }
 
         return area;
     }
@@ -173,12 +188,10 @@ public class Ili2pgExportDialog extends TitleAreaDialog {
         IStructuredSelection selExisting = existingModelCombo != null
             ? (IStructuredSelection) existingModelCombo.getSelection()
             : StructuredSelection.EMPTY;
-        String out = outputText != null ? outputText.getText().trim() : "";
 
         String error = null;
         if (modelNames.isEmpty()) error = "No models found in this schema.";
         else if (selExisting.isEmpty()) error = "Please select a model.";
-        //else if (out.isEmpty()) error = "Please choose an output file.";
 
         setErrorMessage(error);
         Button ok = getButton(IDialogConstants.OK_ID);
@@ -202,10 +215,16 @@ public class Ili2pgExportDialog extends TitleAreaDialog {
 
         this.disableValidation = disableValidationBtn.getSelection();
         //this.overwrite         = overwriteBtn.getSelection();
-        //this.outputPath        = outputText.getText().trim();
+        this.exportDir         = exportDirText.getText().trim();
         this.datasets          = datasetsText.getText().isBlank() ? null : datasetsText.getText().trim();
         this.baskets           = basketsText.getText().isBlank() ? null : basketsText.getText().trim();
         this.topics            = topicsText.getText().isBlank() ? null : topicsText.getText().trim();
+
+        // Save export directory to preferences for future runs
+        if (!this.exportDir.isEmpty()) {
+            ScopedPreferenceStore store = new ScopedPreferenceStore(InstanceScope.INSTANCE, Ili2pgPreferencePage.PLUGIN_ID);
+            store.setValue(Ili2pgPreferencePage.P_EXPORT_DIR, this.exportDir);
+        }
 
         super.okPressed();
     }
@@ -215,7 +234,7 @@ public class Ili2pgExportDialog extends TitleAreaDialog {
     public String  getSelectedExportModel() { return selectedExportModel; }
     public boolean isDisableValidation()    { return disableValidation; }
     public boolean isOverwrite()            { return overwrite; }
-    public String  getOutputPath()          { return outputPath; }
+    public String  getExportDir()           { return exportDir; }
     public String  getDatasets()            { return datasets; }
     public String  getBaskets()             { return baskets; }
     public String  getTopics()              { return topics; }

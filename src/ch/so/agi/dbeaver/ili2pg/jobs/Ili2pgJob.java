@@ -180,13 +180,16 @@ public class Ili2pgJob extends Job {
                     String xtfPath = null;
                     if (mode == Mode.EXPORT) {
                         settings.setFunction(Config.FC_EXPORT);
-                        ScopedPreferenceStore store = new ScopedPreferenceStore(InstanceScope.INSTANCE, Ili2pgPreferencePage.PLUGIN_ID);
-                        String exportDir = store.getString(Ili2pgPreferencePage.P_EXPORT_DIR);
-                        if (exportDir == null || exportDir.isBlank()) {
-                            exportDir = userHome;
+                        // Use xtffile from settings if set (e.g., from dialog), otherwise use preference
+                        if (settings.getXtffile() == null || settings.getXtffile().isEmpty()) {
+                            ScopedPreferenceStore store = new ScopedPreferenceStore(InstanceScope.INSTANCE, Ili2pgPreferencePage.PLUGIN_ID);
+                            String exportDir = store.getString(Ili2pgPreferencePage.P_EXPORT_DIR);
+                            if (exportDir == null || exportDir.isBlank()) {
+                                exportDir = userHome;
+                            }
+                            xtfPath = Paths.get(exportDir, schemaName + ".xtf").toAbsolutePath().toString();
+                            settings.setXtffile(xtfPath);
                         }
-                        xtfPath = Paths.get(exportDir, schemaName + ".xtf").toAbsolutePath().toString();
-                        settings.setXtffile(xtfPath);
                     } else {
                         settings.setFunction(Config.FC_VALIDATE);
                     }

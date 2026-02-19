@@ -235,10 +235,10 @@ public class Ili2pgHandler extends AbstractHandler {
                     if (dlg.open() != Window.OK) {
                         return null;
                     }
-                    
+
                     String modelName = this.sanitizeModelName(dlg.getSelectedModel());
                     settings.setModels(modelName);
-                    
+
                     if (dlg.isDisableValidation()) {
                         settings.setValidation(false);
                     }
@@ -250,6 +250,10 @@ public class Ili2pgHandler extends AbstractHandler {
                     }
                     if (dlg.getTopics() != null) {
                         settings.setTopics(dlg.getTopics());
+                    }
+                    if (dlg.getExportDir() != null && !dlg.getExportDir().isEmpty()) {
+                        java.nio.file.Path xtfPath = java.nio.file.Paths.get(dlg.getExportDir(), schema.getName() + ".xtf");
+                        settings.setXtffile(xtfPath.toAbsolutePath().toString());
                     }
                     new Ili2pgJob(shell, schema, settings, Ili2pgJob.Mode.EXPORT).schedule();
                     break;
