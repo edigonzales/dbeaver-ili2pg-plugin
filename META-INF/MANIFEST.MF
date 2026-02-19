@@ -1,6 +1,6 @@
 Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
-Bundle-Name: DBeaver ILI2PG Plugin
+Bundle-Name: DBeaver ili2pg Plugin
 Bundle-SymbolicName: ch.so.agi.dbeaver.ili2pg;singleton:=true
 Bundle-Version: 1.0.1.qualifier
 Bundle-Vendor: Amt für Geoinformation (Kanton Solothurn)
@@ -21,7 +21,7 @@ Bundle-ClassPath: .,
  lib/antlr-2.7.7.jar,
  lib/base64-2.3.9.jar,
  lib/caffeine-2.6.2.jar,
- lib/checker-qual-3.31.0.jar,
+ lib/checker-qual-3.49.3.jar,
  lib/ehibasics-1.4.1.jar,
  lib/ehisqlgen-1.16.1.jar,
  lib/ili2c-core-5.6.3.jar,
@@ -39,6 +39,6 @@ Bundle-ClassPath: .,
  lib/jna-4.5.1.jar,
  lib/jna-platform-4.5.1.jar,
  lib/jts-core-1.14.0.jar,
- lib/postgresql-42.6.0.jar,
+ lib/postgresql-42.7.7.jar,
  lib/slf4j-api-1.7.25.jar,
  lib/waffle-jna-1.9.1.jar

@@ -64,7 +64,7 @@
 
   <handler
       commandId="ch.so.agi.dbeaver.ili2pg.commands.exportSchema"
-      class="ch.so.agi.dbeaver.i.Ili2pgHandlertSchemaHandler">
+      class="ch.so.agi.dbeaver.ili2pg.handlers.Ili2pgHandler">
     <enabledWhen>
       <and>
         <with variable="selection"><count value="1"/></with>
