@@ -175,8 +175,9 @@ public class Ili2pgJob extends Job {
                     String userHome = System.getProperty("user.home");
                     String logPath  = Paths.get(userHome, schemaName + ".log").toAbsolutePath().toString();
                     listener.setLogfileName(logPath);
-                    settings.setLogfile(logPath);                    
+                    settings.setLogfile(logPath);
 
+                    String xtfPath = null;
                     if (mode == Mode.EXPORT) {
                         settings.setFunction(Config.FC_EXPORT);
                         ScopedPreferenceStore store = new ScopedPreferenceStore(InstanceScope.INSTANCE, Ili2pgPreferencePage.PLUGIN_ID);
@@ -184,14 +185,32 @@ public class Ili2pgJob extends Job {
                         if (exportDir == null || exportDir.isBlank()) {
                             exportDir = userHome;
                         }
-                        String xtfPath  = Paths.get(exportDir, schemaName + ".xtf").toAbsolutePath().toString();
+                        xtfPath = Paths.get(exportDir, schemaName + ".xtf").toAbsolutePath().toString();
                         settings.setXtffile(xtfPath);
                     } else {
                         settings.setFunction(Config.FC_VALIDATE);
                     }
-                    
+
                     Ili2db.readSettingsFromDb(settings);
                     Ili2db.run(settings, null);
+                    
+                    // Check for INTERLIS errors/warnings after export or validation
+                    int errorCount = listener.getErrorCount();
+                    
+                    if (mode == Mode.EXPORT && xtfPath != null) {
+                        if (errorCount > 0) {
+                            doneAsync("ili2pg export finished with warnings/errors", "Exported to: " + xtfPath + "\n\nFound " + errorCount + " validation issue(s). See console for details.");
+                        } else {
+                            doneAsync("ili2pg export finished", "Exported to: " + xtfPath);
+                        }
+                    } else if (mode == Mode.VALIDATE) {
+                        if (errorCount > 0) {
+                            doneAsync("ili2pg validation finished", "Found " + errorCount + " validation issue(s). See console for details.");
+                        } else {
+                            doneAsync("ili2pg validation finished", "Validation completed successfully. No issues found.");
+                        }
+                    }
+                    return Status.OK_STATUS;
                 } catch (SQLException e) {
                     err.println("! JDBC/DB error: " + e.getMessage());
                     return Status.error(e.getMessage(), e);
@@ -202,12 +221,12 @@ public class Ili2pgJob extends Job {
                     EhiLogger.getInstance().removeListener(listener);
                 }
             }
-       
-            doneAsync("ili2pg job finished", "ili2pg job finished");
+            
+            // Should not reach here, but required for compilation
             return Status.OK_STATUS;
         } catch (Exception e) {
             return error("ili2pg job failed: " + e.getMessage(), e);
-        } 
+        }
     }
 
     private Config createConfig() {

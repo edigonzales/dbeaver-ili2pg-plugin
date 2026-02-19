@@ -130,4 +130,12 @@ public class EclipseConsoleLogListener extends AbstractFilteringListener {
         }
         return super.skipEvent(event);
     }
+    
+    /**
+     * Returns the number of INTERLIS errors/warnings encountered.
+     * @return error count (0 means no errors/warnings)
+     */
+    public int getErrorCount() {
+        return ioxErrc;
+    }
 }
