@@ -6,7 +6,7 @@ Bundle-Version: 1.0.1.qualifier
 Bundle-Vendor: Amt für Geoinformation (Kanton Solothurn)
 Bundle-RequiredExecutionEnvironment: JavaSE-21
 Bundle-ActivationPolicy: lazy
-Require-Bundle:
+Require-Bundle: 
  org.eclipse.core.runtime,
  org.eclipse.ui,
  org.eclipse.core.expressions,

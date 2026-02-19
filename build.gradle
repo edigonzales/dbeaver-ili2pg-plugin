@@ -12,6 +12,7 @@ java {
 }
 
 repositories {
+    maven { url 'https://jars.sogeo.services/mirror' }
     mavenCentral()
 }
 
@@ -19,6 +20,12 @@ def dbeaverPluginsDir = (findProperty('dbeaverPluginsDir') ?: System.getenv('DBE
 def hasDbeaverPlugins = file(dbeaverPluginsDir).exists()
 
 dependencies {
+    implementation "ch.interlis:ili2pg:5.2.2"
+    implementation "ch.ehi:ehibasics:1.4.1" 
+    implementation "org.postgresql:postgresql:42.7.7"
+    implementation "com.github.waffle:waffle-jna:1.9.1"
+    implementation "com.github.waffle:waffle-jna:1.9.1"
+
     if (hasDbeaverPlugins) {
         compileOnly fileTree(dir: dbeaverPluginsDir, include: ['*.jar'])
         testCompileOnly fileTree(dir: dbeaverPluginsDir, include: ['*.jar'])
@@ -59,6 +66,12 @@ configurations {
 }
 
 dependencies {
+    bundleLibs "ch.interlis:ili2pg:5.2.2"
+    bundleLibs "ch.ehi:ehibasics:1.4.1" 
+    bundleLibs "org.postgresql:postgresql:42.7.7"
+    bundleLibs "com.github.waffle:waffle-jna:1.9.1"
+    bundleLibs "com.github.waffle:waffle-jna:1.9.1"
+    
     // ili2pg libraries are managed by downloadAndExtractIli2pg task
     // They are copied to lib/ directory and included via Bundle-ClassPath
 }
@@ -118,11 +131,7 @@ task downloadAndExtractIli2pg {
         // Print build.properties entry
         println "=== build.properties bin.includes ==="
         def jarList = bundleClassPathEntries.join(', ')
-        println "bin.includes = plugin.xml,\\
-               META-INF/,\\
-               .,\\
-               icons/,\\
-               ${jarList}"
+        println "bin.includes = plugin.xml,\\n               META-INF/,\\n               .,\\n               icons/,\\n               " + jarList
         println "=====================================\n"
     }
 }
@@ -159,4 +168,8 @@ tasks.register('printBundleClassPath') {
 
 tasks.named('test') {
     dependsOn('downloadAndExtractIli2pg')
+}
+
+tasks.named('test') {
+    dependsOn('syncBundleLibs')
 }
