@@ -1,17 +1,19 @@
 Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
-Bundle-Name: dbeaver-Ili2pg-plugin
+Bundle-Name: DBeaver ILI2PG Plugin
 Bundle-SymbolicName: ch.so.agi.dbeaver.ili2pg;singleton:=true
 Bundle-Version: 1.0.1.qualifier
 Bundle-Vendor: Amt für Geoinformation (Kanton Solothurn)
-Require-Bundle: 
+Bundle-RequiredExecutionEnvironment: JavaSE-21
+Bundle-ActivationPolicy: lazy
+Require-Bundle:
  org.eclipse.core.runtime,
- org.eclipse.ui, 
+ org.eclipse.ui,
  org.eclipse.core.expressions,
  org.eclipse.jface,
  org.eclipse.ui.console,
  org.jkiss.dbeaver.model,
- org.jkiss.dbeaver.ui,    
+ org.jkiss.dbeaver.ui,
  org.jkiss.dbeaver.ui.navigator,
  org.jkiss.dbeaver.ext.postgresql
 Bundle-ClassPath: .,
@@ -40,6 +42,3 @@ Bundle-ClassPath: .,
  lib/postgresql-42.6.0.jar,
  lib/slf4j-api-1.7.25.jar,
  lib/waffle-jna-1.9.1.jar
-Automatic-Module-Name: ch.so.agi.dbeaver.ili2pg
-Bundle-RequiredExecutionEnvironment: JavaSE-21
-Bundle-ActivationPolicy: lazy

@@ -1,66 +1,114 @@
-# dbeaver-ili2pg-plugin
+# DBeaver ILI2PG Plugin (`ch.so.agi.dbeaver.ili2pg`)
 
-## todo
-- Falls error -> gesamtes Logfile in "show details"
+DBeaver-Plugin für INTERLIS-Datenbankoperationen mit ili2pg.
 
-## develop
+## Features
 
-Das Projekt ist ein Eclipse-Projekt, d.h. kein Maven- oder Gradle-Projekt (auch wenn Gradle später für eine Aufgabe verwendet wird). Zum Entwicklen wird am besten "Eclipse IDE for RCP and RAP Developers" verwendet. 
+- **Create schema**: Generiert Datenbank-Schema aus INTERLIS-Modellen
+- **Import data**: Importiert INTERLIS-Daten (XTF, XML) in PostgreSQL
+- **Export schema**: Exportiert Datenbank-Schema als INTERLIS-Modell
+- **Export schema with options**: Schema-Export mit erweiterten Optionen
+- **Validate schema**: Validiert Datenbank gegen INTERLIS-Modelle
 
-Damit man für die Codeänderungen möglichst rasch ein Feedback bekommt, kann man via Eclipse eine dbeaver-Instanz starten und das Plugin dorthin deployen. Dafür müssen einige Einstellungen in Eclipse vorgenommen werden. Als erstes muss die Target Platform definiert werden `Settings` - `Plug-in Development` - `Target Platform` - `Add` ... Hier muss das `plugin`-Directory der dbeaver-Installation ausgewählt werden. Die neu erstellte Target Platform muss anschliessend explizit ausgewählt werden.
+## Projektstruktur
 
-Ausführen muss man das Plugin-Projekt als `Eclipse Application`. Für den Workspace wählt man den Pfad zum Workspace dbeaver-Installation, z.B. unter macOS: `/Users/stefan/Library/DBeaverData/workspace6`. Dies ist optional aber notwendig, wenn man nicht mit einem leeren Workspace, d.h. ohne vordefinierte Datenbanken in dbeaver starten will. Unter `Run an Application` ist `org.jkiss.dbeaver.ui.app.standalone.standalone` auszuwählen. Jetzt wird bei jedem Ausführen des Plugins dbeaver gestartet und das Plugin deployed.
+- Java-Quellen: `./src/ch/so/agi/dbeaver/ili2pg`
+- OSGi/Plugin-Metadaten:
+  - `./plugin.xml`
+  - `./META-INF/MANIFEST.MF`
+  - `./build.properties`
 
-Benötigt das Plugin 3rd party libraries, muss (resp. kann neben anderen Varianten) man diese in das OSGi-Bundle packen. Im vorliegenden Fall übernimmt ein Gradle-Task `downloadAndExtractIli2pg` diese Aufgabe. Er lädt die die gezippte ili2pg-Datei herunter, entzippt sie und kopiert die Libraries in ein lib-Verzeichnis. Den Konsolenoutput des Tasks kann man auch für die MANIFEST.MF-Datei und für build.properties verwenden. Beiden müssen die Libraries bekannt gemacht werden. Falls notwendig: in Eclipse den Classpath updaten `Plug-in Tools` - `Update Classpath`.
+## Build und Test
 
-## releasing / update site
+### Voraussetzungen
 
-Für die Update Site wird ein weiteres Eclipse-Projekt benötigt, das Feature-Projekt https://github.com/edigonzales/dbeaver-ilitools-feature. Ein Feature könnte mehrere Plugins haben (soweit ich es verstanden habe). Im Feature-Projekt muss man das dbeaver-Plugin hinzufügen. Sinnvollerweise erhalten beide Projekte die gleiche Versionsnummer. Jeder Release sollte eine neue Versionsnummer erhalten.
+- Java 21
+- Lokale DBeaver-Installation (Standardpfad auf macOS):
+  - `/Applications/DBeaver.app/Contents/Eclipse/plugins`
+- Optional anderer Plugin-Pfad:
+  - Gradle Property: `-PdbeaverPluginsDir=/path/to/plugins`
+  - oder Env-Var: `DBEAVER_PLUGINS_DIR=/path/to/plugins`
 
-Das Feature-Projekt muss man exportieren: `Export` - `Deployable Features` - Directory wählen (siehe unten die Eclipse-Befehle). Anschliessend müssen die erstellten Dateien mit weiteren Metainformationen angereichert werden. Dazu kann man folgende Befehle mit Eclipse auf der Konsole ausführen. Die Pfade sind im Prinzip willkürlich.
+### Kommandos
 
-Achtung: Die Update Site hat nicht funktioniert, wenn sie eine Domain ist. Es wird ein Pfad (Unterverzeichnis) benötigt.
-
-
-Eclipse 2025-6:
-```
-/Users/stefan/apps/eclipse/rcp-2025-06/Eclipse.app/Contents/MacOS/eclipse \
-  -nosplash -consolelog \
-  -application org.eclipse.equinox.p2.publisher.FeaturesAndBundlesPublisher \
-  -metadataRepository "file:/Users/stefan/tmp/updatesite/" \
-  -artifactRepository "file:/Users/stefan/tmp/updatesite/" \
-  -source "/Users/stefan/sources/dbeaver-ili2pg-plugin/build/update-input" \
-  -compress \
-  -publishArtifacts
-```
-
-(Achtung: falscher categoryDefinition-Pfad. Ist Zufall, dass es funktioniert)
-```
-/Users/stefan/apps/eclipse/rcp-2025-06/Eclipse.app/Contents/MacOS/eclipse \
-  -nosplash -consolelog \
-  -application org.eclipse.equinox.p2.publisher.CategoryPublisher \
-  -metadataRepository "file:/Users/stefan/tmp/updatesite/" \
-  -categoryDefinition "file:/Users/stefan/Documents/eclipse-workspace-2025-06/ch.so.agi.dbeaver.ili2pg.feature/category.xml" \
-  -categoryQualifier "interlis"
+```bash
+./gradlew downloadAndExtractIli2pg
+./gradlew syncBundleLibs
+./gradlew printBundleClassPath
+./gradlew clean test
 ```
 
-Eclipse 2025-9:
-```
-/Users/stefan/apps/eclipse/rcp-2025-09/Eclipse.app/Contents/MacOS/eclipse \
-  -nosplash -consolelog \
-  -application org.eclipse.equinox.p2.publisher.FeaturesAndBundlesPublisher \
-  -metadataRepository "file:/Users/stefan/tmp/updatesite/" \
-  -artifactRepository "file:/Users/stefan/tmp/updatesite/" \
-  -source "/Users/stefan/sources/dbeaver-ili2pg-plugin/build/update-input" \
-  -compress \
-  -publishArtifacts
-```
+## Entwicklung in Eclipse (PDE)
 
-```
-/Users/stefan/apps/eclipse/rcp-2025-09/Eclipse.app/Contents/MacOS/eclipse \
-  -nosplash -consolelog \
-  -application org.eclipse.equinox.p2.publisher.CategoryPublisher \
-  -metadataRepository "file:/Users/stefan/tmp/updatesite/" \
-  -categoryDefinition "file:/Users/stefan/sources/dbeaver-ilitools-feature/category.xml" \
-  -categoryQualifier "interlis"
-```
+Detaillierte Schritt-für-Schritt-Anleitung für Target Platform, Launch Configuration, Runtime-Loop und Troubleshooting:
+- [Eclipse Development Guide](docs/ECLIPSE_DEVELOPMENT.md)
+
+Kurz:
+1. In Eclipse (RCP/RAP) importieren.
+2. DBeaver-Installation als aktive PDE Target Platform setzen.
+3. Bei Lib-Änderungen `./gradlew downloadAndExtractIli2pg` und `./gradlew syncBundleLibs` ausführen und danach `PDE Tools -> Update Classpath`.
+4. Als `Eclipse Application` mit `org.jkiss.dbeaver.ui.app.standalone.standalone` starten.
+
+## Release / Update Site
+
+Die Veröffentlichung auf der gemeinsamen Update-Site (`ili2pg` + `AI`) ist hier beschrieben:
+- [Releasing / Update Site](docs/RELEASING_UPDATE_SITE.md)
+
+## DBeaver Preferences
+
+Preference Page ID: `ch.so.agi.dbeaver.ili2pg.prefs`
+
+| UI Feld | Key | Default | Bedeutung / Verhalten |
+|---------|-----|---------|----------------------|
+| ili2pg Home | `ch.so.agi.dbeaver.ili2pg.home` | (auto) | Verzeichnis der ili2pg-Installation. Bei leerem Wert wird das im Plugin gebündelte ili2pg verwendet. |
+| Java Executable | `ch.so.agi.dbeaver.ili2pg.java` | (system) | Pfad zur Java-Executable für ili2pg-Aufrufe. Bei leerem Wert wird `java` aus `PATH` verwendet. |
+| Log Level | `ch.so.agi.dbeaver.ili2pg.logLevel` | `INFO` | Logging-Level für ili2pg-Ausgaben (`INFO`, `DEBUG`, `WARNING`, `ERROR`). |
+| Create Schema Options | `ch.so.agi.dbeaver.ili2pg.createSchemaOptions` | `--createSchema` | Standard-Optionen für Schema-Erstellung. |
+| Import Data Options | `ch.so.agi.dbeaver.ili2pg.importDataOptions` | `--import` | Standard-Optionen für Daten-Import. |
+| Export Schema Options | `ch.so.agi.dbeaver.ili2pg.exportSchemaOptions` | `--export` | Standard-Optionen für Schema-Export. |
+
+Hinweis: Die tatsächlichen Preference-Keys und Defaults können je nach Implementierung variieren. Siehe `Ili2pgPreferenceInitializer` für die definitive Liste.
+
+## Nutzung
+
+1. **Schema erstellen**:
+   - Rechtsklick auf Datenbank-Connection → `ili2pg` → `Create schema…`
+   - INTERLIS-Modell und Optionen auswählen
+   - ili2pg erstellt das Schema in der Datenbank
+
+2. **Daten importieren**:
+   - Rechtsklick auf Schema → `ili2pg` → `Import data…`
+   - XTF/XML-Datei auswählen
+   - ili2pg importiert die Daten ins Schema
+
+3. **Schema exportieren**:
+   - Rechtsklick auf Schema → `ili2pg` → `Export schema…`
+   - Zieldatei und Optionen auswählen
+   - ili2pg exportiert das Schema als INTERLIS-Modell
+
+4. **Schema validieren**:
+   - Rechtsklick auf Schema → `ili2pg` → `Validate schema…`
+   - Validierungsoptionen auswählen
+   - ili2pg validiert das Schema gegen die INTERLIS-Modelle
+
+## Hinweise
+
+- **ili2pg Libraries**: Das Plugin enthält gebündelte ili2pg-Libraries im `lib/`-Verzeichnis. Diese werden via Gradle-Task `downloadAndExtractIli2pg` aktualisiert.
+- **Bundle-ClassPath**: Bei Änderungen an `lib/` muss `META-INF/MANIFEST.MF` (Bundle-ClassPath) und `build.properties` aktualisiert werden. Der Task `printBundleClassPath` generiert die korrekten Einträge.
+- **Error Log**: Detaillierte Fehlermeldungen sind im DBeaver `Error Log` (Window → Show View → Error Log) sichtbar.
+- **PostgreSQL-Treiber**: Das Plugin enthält einen PostgreSQL-Treiber im `lib/`-Verzeichnis. Dieser wird für die ili2pg-Integration benötigt.
+
+## Architektur
+
+Details zur Plugin-Architektur:
+- [Architecture](docs/ARCHITECTURE.md)
+
+## About
+
+Plugin für die Arbeit mit INTERLIS-Daten in DBeaver. Entwickelt vom Amt für Geoinformation des Kantons Solothurn.
+
+## Resources
+
+- [ili2pg Dokumentation](https://www.interlis.ch/ili2pg/)
+- [INTERLIS](https://www.interlis.ch/)
+- [DBeaver](https://dbeaver.io/)

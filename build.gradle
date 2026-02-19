@@ -2,73 +2,161 @@ plugins {
     id 'java'
 }
 
+group = 'ch.so.agi.dbeaver'
+version = '1.0.1-SNAPSHOT'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
 repositories {
     mavenCentral()
 }
 
+def dbeaverPluginsDir = (findProperty('dbeaverPluginsDir') ?: System.getenv('DBEAVER_PLUGINS_DIR') ?: '/Applications/DBeaver.app/Contents/Eclipse/plugins') as String
+def hasDbeaverPlugins = file(dbeaverPluginsDir).exists()
+
+dependencies {
+    if (hasDbeaverPlugins) {
+        compileOnly fileTree(dir: dbeaverPluginsDir, include: ['*.jar'])
+        testCompileOnly fileTree(dir: dbeaverPluginsDir, include: ['*.jar'])
+        testRuntimeOnly fileTree(dir: dbeaverPluginsDir, include: ['*.jar'])
+    }
+
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.12.0'
+    testImplementation 'org.assertj:assertj-core:3.27.3'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.12.0'
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+sourceSets {
+    main {
+        java {
+            srcDirs = ['src']
+        }
+    }
+    test {
+        java {
+            srcDirs = ['test']
+        }
+    }
+}
+
+test {
+    useJUnitPlatform()
+}
+
+configurations {
+    bundleLibs {
+        canBeConsumed = false
+        canBeResolved = true
+    }
+}
+
+dependencies {
+    // ili2pg libraries are managed by downloadAndExtractIli2pg task
+    // They are copied to lib/ directory and included via Bundle-ClassPath
+}
+
+/**
+ * Downloads ili2pg distribution and extracts JAR files to lib/ directory.
+ * This task manages third-party dependencies that are bundled with the plugin.
+ */
 task downloadAndExtractIli2pg {
     doLast {
         def zipUrl = 'https://downloads.interlis.ch/ili2pg/ili2pg-5.2.2.zip'
         def zipFile = file('build/ili2pg-5.2.2.zip')
         def libDir = file('lib')
-        
+
         // Create build directory if it doesn't exist
         zipFile.parentFile.mkdirs()
-        
+
         // Download the zip file
         println "Downloading ${zipUrl}..."
         ant.get(src: zipUrl, dest: zipFile)
-        
+
         // Create lib directory
         libDir.mkdirs()
-        
+
         // Extract all jars from the zip file to lib root, excluding docs
         copy {
             from zipTree(zipFile)
             into libDir
             include '**/*.jar'
             exclude 'docs/**'
-            eachFile { 
+            eachFile {
                 // Flatten the directory structure - put all files in root of libDir
                 relativePath = new RelativePath(true, relativePath.lastName)
             }
             includeEmptyDirs = false
         }
-        
+
         // Collect all jar files
         def jarFiles = fileTree(libDir).include('**/*.jar').files
-        
-        // Generate Bundle-ClassPath entries
+
+        // Sort entries for consistent output
         def bundleClassPathEntries = jarFiles.collect { jarFile ->
             return "lib/${jarFile.name}"
-        }
-        
-        // Sort entries for consistent output
-        bundleClassPathEntries.sort()
-        
-        // Print Bundle-ClassPath header with line breaks and no trailing comma
+        }.sort()
+
+        // Print Bundle-ClassPath entries for MANIFEST.MF
         if (!bundleClassPathEntries.isEmpty()) {
+            println "\n=== Bundle-ClassPath for MANIFEST.MF ==="
             println "Bundle-ClassPath: .,"
             bundleClassPathEntries.eachWithIndex { entry, index ->
-                if (index < bundleClassPathEntries.size() - 1) {
-                    println " ${entry},"
-                } else {
-                    println " ${entry}"
-                }
+                def suffix = index < bundleClassPathEntries.size() - 1 ? ',' : ''
+                println " ${entry}${suffix}"
             }
-        } else {
-            println "Bundle-ClassPath: ."
+            println "========================================\n"
         }
-        
-        // Alternative single println approach (removes trailing comma)
-        def formattedEntries = bundleClassPathEntries.collect { entry -> 
-            " ${entry}," 
-        }
-        formattedEntries.removeAll { it == null } // Remove any null entries
-        if (formattedEntries.size() > 0) {
-            formattedEntries[formattedEntries.size() - 1] = formattedEntries[formattedEntries.size() - 1].replace(',', '') // Remove last comma
-        }
-        println "Bundle-ClassPath: .,\n${formattedEntries.join('')}"
-        
+
+        // Print build.properties entry
+        println "=== build.properties bin.includes ==="
+        def jarList = bundleClassPathEntries.join(', ')
+        println "bin.includes = plugin.xml,\\
+               META-INF/,\\
+               .,\\
+               icons/,\\
+               ${jarList}"
+        println "=====================================\n"
     }
+}
+
+tasks.register('syncBundleLibs', Copy) {
+    description = 'Synchronizes bundle libraries to lib/ directory'
+    from(configurations.bundleLibs)
+    into(layout.projectDirectory.dir('lib'))
+}
+
+tasks.register('printBundleClassPath') {
+    description = 'Prints Bundle-ClassPath entries for MANIFEST.MF'
+    dependsOn('downloadAndExtractIli2pg')
+    doLast {
+        def libDir = layout.projectDirectory.dir('lib')
+        def jars = fileTree(libDir.asFile)
+            .matching { include '*.jar' }
+            .files
+            .collect { "lib/${it.name}" }
+            .sort()
+
+        if (jars.isEmpty()) {
+            println 'Bundle-ClassPath: .'
+            return
+        }
+
+        println 'Bundle-ClassPath: .,'
+        jars.eachWithIndex { entry, index ->
+            def suffix = index < jars.size() - 1 ? ',' : ''
+            println " ${entry}${suffix}"
+        }
+    }
+}
+
+tasks.named('test') {
+    dependsOn('downloadAndExtractIli2pg')
 }
