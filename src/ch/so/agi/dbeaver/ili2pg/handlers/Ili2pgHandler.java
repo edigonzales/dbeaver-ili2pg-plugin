@@ -5,6 +5,7 @@ import java.net.URISyntaxException;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
+import java.util.Locale;
 import java.util.List;
 import java.util.Set;
 
@@ -139,7 +140,7 @@ public class Ili2pgHandler extends AbstractHandler {
             try {
                 modelNames = loadModelNames(schema);
             } catch (Exception e) {
-                MessageDialog.openError(shell, "ili2pg", "Failed to load model names: " + e.getMessage());
+                MessageDialog.openError(shell, "ili2pg", formatLoadModelNamesError(e));
                 return null;
             }
             Log.info("modelNames: " + modelNames);
@@ -202,7 +203,7 @@ public class Ili2pgHandler extends AbstractHandler {
             try {
                 modelNames = loadModelNames(schema);
             } catch (Exception e) {
-                MessageDialog.openError(shell, "ili2pg", "Failed to load model names: " + e.getMessage());
+                MessageDialog.openError(shell, "ili2pg", formatLoadModelNamesError(e));
                 return null;
             }
             Log.info("modelNames: " + modelNames);
@@ -420,10 +421,104 @@ public class Ili2pgHandler extends AbstractHandler {
         return value;
     }
     
-    /** Query SELECT modelname FROM <schema>.t_ili2db_model ORDER BY modelname. 
-     * @throws DBCException */
-    private List<String> loadModelNames(DBSSchema schema) throws SQLException, DBCException {
+    private String formatLoadModelNamesError(Exception e) {
+        String base = "Failed to load model names";
+        if (e instanceof ModelNamesLoadException failure) {
+            String detail = firstErrorMessage(failure.getCause());
+            if (failure.reconnectAttempted && failure.reconnectFailed) {
+                return base + ". The database connection appears to have been lost and automatic reconnect failed "
+                        + "(possible idle timeout or network drop)." + detail;
+            }
+            if (failure.reconnectAttempted) {
+                return base + ". Automatic reconnect was attempted, but the query still failed." + detail;
+            }
+            return base + detail;
+        }
+        return base + firstErrorMessage(e);
+    }
+
+    private String firstErrorMessage(Throwable t) {
+        for (Throwable cur = t; cur != null; cur = cur.getCause()) {
+            String msg = cur.getMessage();
+            if (msg != null && !msg.isBlank()) {
+                return ": " + msg;
+            }
+        }
+        return "";
+    }
+
+    private boolean isConnectionLost(Throwable t) {
+        for (Throwable cur = t; cur != null; cur = cur.getCause()) {
+            if (cur instanceof SQLException sqlException) {
+                String sqlState = sqlException.getSQLState();
+                if (sqlState != null && sqlState.startsWith("08")) {
+                    return true;
+                }
+            }
+            String msg = cur.getMessage();
+            String className = cur.getClass().getName();
+            String probe = ((msg == null ? "" : msg) + " " + className).toLowerCase(Locale.ROOT);
+            if (probe.contains("i/o error occurred while sending to the backend")
+                    || probe.contains("connection reset")
+                    || probe.contains("broken pipe")
+                    || probe.contains("eofexception")
+                    || probe.contains("connection is closed")
+                    || probe.contains("connection has been closed")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean tryReconnect(DBSSchema schema, DBRProgressMonitor monitor) {
+        DBPDataSource ds = schema.getDataSource();
+        if (ds == null || ds.getContainer() == null) {
+            Log.warn("Reconnect skipped while loading model names for schema '" + schema.getName()
+                    + "': no data source container available.");
+            return false;
+        }
+        DBPDataSourceContainer container = ds.getContainer();
+        String containerName = container.getName();
+        Log.warn("Connection lost while loading model names for schema '" + schema.getName()
+                + "'. Trying reconnect for data source '" + containerName + "'.");
+        try {
+            boolean ok = container.reconnect(monitor);
+            if (ok) {
+                Log.info("Reconnect succeeded for data source '" + containerName + "'.");
+            } else {
+                Log.warn("Reconnect returned false for data source '" + containerName + "'.");
+            }
+            return ok;
+        } catch (Exception e) {
+            Log.warn("Reconnect failed for data source '" + containerName + "': "
+                    + e.getClass().getSimpleName() + ": " + e.getMessage());
+            return false;
+        }
+    }
+
+    /** Query SELECT modelname FROM <schema>.t_ili2db_model ORDER BY modelname, with one reconnect/retry on lost connections. */
+    private List<String> loadModelNames(DBSSchema schema) throws SQLException, DBCException, ModelNamesLoadException {
         DBRProgressMonitor monitor = new VoidProgressMonitor();
+        try {
+            return loadModelNamesOnce(schema, monitor);
+        } catch (SQLException | DBCException firstError) {
+            if (!isConnectionLost(firstError)) {
+                throw firstError;
+            }
+            boolean reconnectOk = tryReconnect(schema, monitor);
+            if (!reconnectOk) {
+                throw new ModelNamesLoadException(firstError, true, true);
+            }
+            try {
+                return loadModelNamesOnce(schema, monitor);
+            } catch (SQLException | DBCException retryError) {
+                throw new ModelNamesLoadException(retryError, true, false);
+            }
+        }
+    }
+
+    /** Single attempt query without reconnect logic. */
+    private List<String> loadModelNamesOnce(DBSSchema schema, DBRProgressMonitor monitor) throws SQLException, DBCException {
         DBPDataSource ds = schema.getDataSource();
 
         String qSchema = DBUtils.getQuotedIdentifier(schema);
@@ -447,5 +542,17 @@ public class Ili2pgHandler extends AbstractHandler {
             }
         }
         return new ArrayList<>(uniq);
-    } 
+    }
+
+    private static final class ModelNamesLoadException extends Exception {
+        private static final long serialVersionUID = 1L;
+        private final boolean reconnectAttempted;
+        private final boolean reconnectFailed;
+
+        private ModelNamesLoadException(Throwable cause, boolean reconnectAttempted, boolean reconnectFailed) {
+            super(cause);
+            this.reconnectAttempted = reconnectAttempted;
+            this.reconnectFailed = reconnectFailed;
+        }
+    }
 }
