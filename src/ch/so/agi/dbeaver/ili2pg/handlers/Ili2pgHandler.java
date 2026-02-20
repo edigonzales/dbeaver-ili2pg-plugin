@@ -1,5 +1,7 @@
 package ch.so.agi.dbeaver.ili2pg.handlers;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -20,8 +22,10 @@ import org.eclipse.ui.IWorkbenchWindow;
 import org.eclipse.ui.dialogs.ElementListSelectionDialog;
 import org.eclipse.ui.handlers.HandlerUtil;
 import org.eclipse.ui.preferences.ScopedPreferenceStore;
+import org.jkiss.dbeaver.model.DBPDataSourceContainer;
 import org.jkiss.dbeaver.model.DBPDataSource;
 import org.jkiss.dbeaver.model.DBUtils;
+import org.jkiss.dbeaver.model.connection.DBPConnectionConfiguration;
 import org.jkiss.dbeaver.model.exec.DBCException;
 import org.jkiss.dbeaver.model.exec.jdbc.JDBCPreparedStatement;
 import org.jkiss.dbeaver.model.exec.jdbc.JDBCResultSet;
@@ -127,6 +131,9 @@ public class Ili2pgHandler extends AbstractHandler {
                 return null;
             }
             Log.info("Schema: " + schema);
+            if (!ensureActiveDatabaseMatches(schema, shell, action)) {
+                return null;
+            }
 
             List<String> modelNames;
             try {
@@ -186,6 +193,9 @@ public class Ili2pgHandler extends AbstractHandler {
                 return null;
             }
             Log.info("Schema: " + schema);
+            if (!ensureActiveDatabaseMatches(schema, shell, action)) {
+                return null;
+            }
             
             // Read model names from schema.t_ili2db_model
             List<String> modelNames;
@@ -307,6 +317,107 @@ public class Ili2pgHandler extends AbstractHandler {
             }
         }
         return null;
+    }
+
+    private boolean ensureActiveDatabaseMatches(DBSSchema schema, Shell shell, Action action) {
+        String schemaDatabaseName = normalizeDatabaseName(getSchemaDatabaseName(schema));
+        String activeDatabaseName = normalizeDatabaseName(getActiveDatabaseName(schema));
+
+        // Avoid false positives if DB names cannot be determined.
+        if (schemaDatabaseName == null || activeDatabaseName == null) {
+            return true;
+        }
+        if (schemaDatabaseName.equalsIgnoreCase(activeDatabaseName)) {
+            return true;
+        }
+
+        Log.warn("Blocked " + action + " on schema '" + schema.getName() + "': schema DB='" + schemaDatabaseName
+                + "', active DB='" + activeDatabaseName + "'.");
+
+        MessageDialog.openWarning(shell, "ili2pg",
+                "The selected schema belongs to database \"" + schemaDatabaseName + "\", but the active connection database is \""
+                        + activeDatabaseName + "\".\n\n"
+                        + actionLabel(action) + " works only on the active connection database.\n"
+                        + "Please set the database in Connection configuration to \"" + schemaDatabaseName + "\" and retry.\n"
+                        + "Using \"Show all databases\" is not supported for this action.");
+        return false;
+    }
+
+    private String actionLabel(Action action) {
+        switch (action) {
+            case IMPORT:
+                return "Import";
+            case EXPORT:
+            case EXPORT_WITH_OPTIONS:
+                return "Export";
+            case VALIDATE:
+                return "Validate";
+            default:
+                return "This action";
+        }
+    }
+
+    private String getSchemaDatabaseName(DBSSchema schema) {
+        for (DBSObject p = schema; p != null; p = p.getParentObject()) {
+            if (p instanceof org.jkiss.dbeaver.ext.postgresql.model.PostgreDatabase) {
+                return p.getName();
+            }
+        }
+        return null;
+    }
+
+    private String getActiveDatabaseName(DBSSchema schema) {
+        DBPDataSource ds = schema.getDataSource();
+        if (ds == null) {
+            return null;
+        }
+        DBPDataSourceContainer container = ds.getContainer();
+        if (container == null) {
+            return null;
+        }
+        DBPConnectionConfiguration cc = container.getActualConnectionConfiguration();
+        if (cc == null) {
+            return null;
+        }
+        String dbName = normalizeDatabaseName(cc.getDatabaseName());
+        if (dbName != null) {
+            return dbName;
+        }
+        return normalizeDatabaseName(extractDatabaseNameFromJdbcUrl(cc.getUrl()));
+    }
+
+    private String extractDatabaseNameFromJdbcUrl(String jdbcUrl) {
+        if (jdbcUrl == null || jdbcUrl.isBlank() || !jdbcUrl.startsWith("jdbc:")) {
+            return null;
+        }
+        String jdbcBody = jdbcUrl.substring("jdbc:".length());
+        try {
+            URI uri = new URI(jdbcBody);
+            String path = uri.getPath();
+            if (path == null || path.isBlank() || "/".equals(path)) {
+                return null;
+            }
+            String dbName = path.substring(path.lastIndexOf('/') + 1);
+            return dbName.isBlank() ? null : dbName;
+        } catch (URISyntaxException e) {
+            Log.warn("Could not parse JDBC URL to determine database name: " + jdbcUrl);
+            return null;
+        }
+    }
+
+    private String normalizeDatabaseName(String name) {
+        if (name == null) {
+            return null;
+        }
+        String normalized = unquoteIdentifier(name.trim());
+        return normalized.isBlank() ? null : normalized;
+    }
+
+    private String unquoteIdentifier(String value) {
+        if (value.length() >= 2 && value.startsWith("\"") && value.endsWith("\"")) {
+            return value.substring(1, value.length() - 1).trim();
+        }
+        return value;
     }
     
     /** Query SELECT modelname FROM <schema>.t_ili2db_model ORDER BY modelname. 
