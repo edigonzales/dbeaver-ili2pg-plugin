@@ -323,6 +323,7 @@ public class Ili2pgHandler extends AbstractHandler {
     private boolean ensureActiveDatabaseMatches(DBSSchema schema, Shell shell, Action action) {
         String schemaDatabaseName = normalizeDatabaseName(getSchemaDatabaseName(schema));
         String activeDatabaseName = normalizeDatabaseName(getActiveDatabaseName(schema));
+        String configuredDatabaseName = normalizeDatabaseName(getConfiguredDatabaseName(schema));
 
         // Avoid false positives if DB names cannot be determined.
         if (schemaDatabaseName == null || activeDatabaseName == null) {
@@ -333,14 +334,15 @@ public class Ili2pgHandler extends AbstractHandler {
         }
 
         Log.warn("Blocked " + action + " on schema '" + schema.getName() + "': schema DB='" + schemaDatabaseName
-                + "', active DB='" + activeDatabaseName + "'.");
+                + "', runtime active DB='" + activeDatabaseName + "', config DB='" + configuredDatabaseName + "'.");
 
         MessageDialog.openWarning(shell, "ili2pg",
-                "The selected schema belongs to database \"" + schemaDatabaseName + "\", but the active connection database is \""
+                "The selected schema belongs to database \"" + schemaDatabaseName + "\", but the active database is \""
                         + activeDatabaseName + "\".\n\n"
-                        + actionLabel(action) + " works only on the active connection database.\n"
-                        + "Please set the database in Connection configuration to \"" + schemaDatabaseName + "\" and retry.\n"
-                        + "Using \"Show all databases\" is not supported for this action.");
+                        + actionLabel(action) + " works only on the active/default database (bold in the navigator).\n"
+                        + "Please set \"" + schemaDatabaseName
+                        + "\" as default (bold) in the navigator or set it in Connection configuration, then retry.\n"
+                        + "With \"Show all databases\", only the currently active/default (bold) database can be used for this action.");
         return false;
     }
 
@@ -368,6 +370,24 @@ public class Ili2pgHandler extends AbstractHandler {
     }
 
     private String getActiveDatabaseName(DBSSchema schema) {
+        DBPDataSource ds = schema.getDataSource();
+        if (ds == null) {
+            return null;
+        }
+        try {
+            DBSInstance defaultInstance = ds.getDefaultInstance();
+            String runtimeDefaultName = normalizeDatabaseName(defaultInstance == null ? null : defaultInstance.getName());
+            if (runtimeDefaultName != null) {
+                return runtimeDefaultName;
+            }
+        } catch (Exception e) {
+            Log.warn("Could not determine runtime active database from default instance: "
+                    + e.getClass().getSimpleName() + ": " + e.getMessage());
+        }
+        return getConfiguredDatabaseName(schema);
+    }
+
+    private String getConfiguredDatabaseName(DBSSchema schema) {
         DBPDataSource ds = schema.getDataSource();
         if (ds == null) {
             return null;

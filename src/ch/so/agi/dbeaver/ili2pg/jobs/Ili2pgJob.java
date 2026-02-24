@@ -1,5 +1,7 @@
 package ch.so.agi.dbeaver.ili2pg.jobs;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -22,6 +24,7 @@ import org.eclipse.ui.progress.IProgressConstants;
 import org.eclipse.core.runtime.preferences.InstanceScope;
 import org.eclipse.ui.preferences.ScopedPreferenceStore;
 
+import org.jkiss.dbeaver.ext.postgresql.PostgreUtils;
 import org.jkiss.dbeaver.model.DBPDataSourceContainer;
 import org.jkiss.dbeaver.model.connection.DBPConnectionConfiguration;
 import org.jkiss.dbeaver.model.struct.DBSInstance;
@@ -33,6 +36,7 @@ import ch.ehi.ili2db.base.Ili2db;
 import ch.ehi.ili2db.base.Ili2dbException;
 import ch.ehi.ili2db.gui.Config;
 import ch.so.agi.dbeaver.ili2pg.log.EclipseConsoleLogListener;
+import ch.so.agi.dbeaver.ili2pg.log.Log;
 import ch.so.agi.dbeaver.ili2pg.ui.Ili2pgPreferencePage;
 
 public class Ili2pgJob extends Job {
@@ -77,14 +81,19 @@ public class Ili2pgJob extends Job {
 
             if (mode == Mode.SCHEMA_IMPORT) {
                 DBPDataSourceContainer container = database.getDataSource().getContainer();
-                DBPConnectionConfiguration cc = container.getActualConnectionConfiguration();
+                String targetDatabaseName = resolveTargetDatabaseName(database);
+                DBPConnectionConfiguration cc = resolveEffectiveConnectionConfig(container, targetDatabaseName);
+                if (cc == null) {
+                    return Status.error("No connection configuration available for schema import.");
+                }
+                logConnectionSelection(mode, targetDatabaseName, cc);
 
                 String jdbcUrl = cc.getUrl();
                 String hostPort = Objects.toString(cc.getHostPort(), "");
                 String user = cc.getUserName() != null ? cc.getUserName() : "";
                 String pwd = cc.getUserPassword() != null ? cc.getUserPassword() : "";
 
-                try (Connection connection = DriverManager.getConnection(jdbcUrl, user, cc.getUserPassword())) {
+                try (Connection connection = DriverManager.getConnection(jdbcUrl, user, pwd)) {
 //                    connection.setAutoCommit(false);
 
                     settings.setJdbcConnection(connection);
@@ -114,7 +123,12 @@ public class Ili2pgJob extends Job {
             } else if (mode == Mode.IMPORT) {
                 final String schemaName = schema.getName();
                 DBPDataSourceContainer c = schema.getDataSource().getContainer();
-                DBPConnectionConfiguration cc = c.getActualConnectionConfiguration();
+                String targetDatabaseName = resolveTargetDatabaseName(schema);
+                DBPConnectionConfiguration cc = resolveEffectiveConnectionConfig(c, targetDatabaseName);
+                if (cc == null) {
+                    return Status.error("No connection configuration available for import.");
+                }
+                logConnectionSelection(mode, targetDatabaseName, cc);
 
                 String jdbcUrl = cc.getUrl();
                 String hostPort = Objects.toString(cc.getHostPort(), "");
@@ -123,7 +137,7 @@ public class Ili2pgJob extends Job {
 
                 ClassLoader myBundleClassLoader = getClass().getClassLoader();
                 Class.forName("org.postgresql.Driver", true, myBundleClassLoader);
-                try (Connection connection = DriverManager.getConnection(jdbcUrl, user, cc.getUserPassword())) {
+                try (Connection connection = DriverManager.getConnection(jdbcUrl, user, pwd)) {
 //                    connection.setAutoCommit(false);
 
                     settings.setJdbcConnection(connection);
@@ -153,7 +167,12 @@ public class Ili2pgJob extends Job {
             } else {
                 final String schemaName = schema.getName();
                 DBPDataSourceContainer c = schema.getDataSource().getContainer();
-                DBPConnectionConfiguration cc = c.getActualConnectionConfiguration();
+                String targetDatabaseName = resolveTargetDatabaseName(schema);
+                DBPConnectionConfiguration cc = resolveEffectiveConnectionConfig(c, targetDatabaseName);
+                if (cc == null) {
+                    return Status.error("No connection configuration available for export/validate.");
+                }
+                logConnectionSelection(mode, targetDatabaseName, cc);
 
                 String jdbcUrl = cc.getUrl();
                 String hostPort = Objects.toString(cc.getHostPort(), "");
@@ -162,7 +181,7 @@ public class Ili2pgJob extends Job {
 
                 ClassLoader myBundleClassLoader = getClass().getClassLoader();
                 Class.forName("org.postgresql.Driver", true, myBundleClassLoader);
-                try (Connection connection = DriverManager.getConnection(jdbcUrl, user, cc.getUserPassword())) {
+                try (Connection connection = DriverManager.getConnection(jdbcUrl, user, pwd)) {
 //                    connection.setAutoCommit(false);
 
                     settings.setJdbcConnection(connection);
@@ -230,6 +249,105 @@ public class Ili2pgJob extends Job {
         } catch (Exception e) {
             return error("ili2pg job failed: " + e.getMessage(), e);
         }
+    }
+
+    private void logConnectionSelection(Mode mode, String targetDatabaseName, DBPConnectionConfiguration connectionConfiguration) {
+        String effectiveDatabaseName = resolveDatabaseNameFromConnectionConfiguration(connectionConfiguration);
+        Log.info("ili2pg " + mode + ": target DB='" + targetDatabaseName + "', effective connection DB='"
+                + effectiveDatabaseName + "'.");
+    }
+
+    private DBPConnectionConfiguration resolveEffectiveConnectionConfig(DBPDataSourceContainer container, String targetDatabaseName) {
+        if (container == null) {
+            return null;
+        }
+        DBPConnectionConfiguration actual = container.getActualConnectionConfiguration();
+        if (actual == null) {
+            return null;
+        }
+        DBPConnectionConfiguration effective = new DBPConnectionConfiguration(actual);
+        String normalizedTargetDatabaseName = normalizeDatabaseName(targetDatabaseName);
+        if (normalizedTargetDatabaseName == null) {
+            return effective;
+        }
+
+        effective.setDatabaseName(normalizedTargetDatabaseName);
+        String jdbcUrl = effective.getUrl();
+        if (jdbcUrl != null && !jdbcUrl.isBlank()) {
+            try {
+                String updatedJdbcUrl = PostgreUtils.updateDatabaseNameInURL(jdbcUrl, normalizedTargetDatabaseName);
+                if (updatedJdbcUrl != null && !updatedJdbcUrl.isBlank()) {
+                    effective.setUrl(updatedJdbcUrl);
+                }
+            } catch (Exception e) {
+                Log.warn("Could not update JDBC URL with target DB '" + normalizedTargetDatabaseName + "': "
+                        + e.getClass().getSimpleName() + ": " + e.getMessage());
+            }
+        }
+        return effective;
+    }
+
+    private String resolveTargetDatabaseName(DBSObject dbsObject) {
+        if (dbsObject == null) {
+            return null;
+        }
+        if (dbsObject instanceof DBSSchema schemaObject) {
+            for (DBSObject p = schemaObject; p != null; p = p.getParentObject()) {
+                if (p instanceof org.jkiss.dbeaver.ext.postgresql.model.PostgreDatabase) {
+                    return normalizeDatabaseName(p.getName());
+                }
+            }
+            return null;
+        }
+        if (dbsObject instanceof DBSInstance instance) {
+            return normalizeDatabaseName(instance.getName());
+        }
+        return null;
+    }
+
+    private String resolveDatabaseNameFromConnectionConfiguration(DBPConnectionConfiguration connectionConfiguration) {
+        if (connectionConfiguration == null) {
+            return null;
+        }
+        String dbName = normalizeDatabaseName(connectionConfiguration.getDatabaseName());
+        if (dbName != null) {
+            return dbName;
+        }
+        return normalizeDatabaseName(extractDatabaseNameFromJdbcUrl(connectionConfiguration.getUrl()));
+    }
+
+    private String extractDatabaseNameFromJdbcUrl(String jdbcUrl) {
+        if (jdbcUrl == null || jdbcUrl.isBlank() || !jdbcUrl.startsWith("jdbc:")) {
+            return null;
+        }
+        String jdbcBody = jdbcUrl.substring("jdbc:".length());
+        try {
+            URI uri = new URI(jdbcBody);
+            String path = uri.getPath();
+            if (path == null || path.isBlank() || "/".equals(path)) {
+                return null;
+            }
+            String dbName = path.substring(path.lastIndexOf('/') + 1);
+            return dbName.isBlank() ? null : dbName;
+        } catch (URISyntaxException e) {
+            Log.warn("Could not parse JDBC URL to determine database name: " + jdbcUrl);
+            return null;
+        }
+    }
+
+    private String normalizeDatabaseName(String name) {
+        if (name == null) {
+            return null;
+        }
+        String normalized = unquoteIdentifier(name.trim());
+        return normalized.isBlank() ? null : normalized;
+    }
+
+    private String unquoteIdentifier(String value) {
+        if (value.length() >= 2 && value.startsWith("\"") && value.endsWith("\"")) {
+            return value.substring(1, value.length() - 1).trim();
+        }
+        return value;
     }
 
     private Config createConfig() {
